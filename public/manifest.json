@@ -1,0 +1,10 @@
+{
+  "name": "認知書アプリ v0.1 Preview",
+  "short_name": "認知書",
+  "description": "心理検査結果を生活に使える認知書・自分取説へ変換する自己理解支援Webプロトタイプ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf7ef",
+  "theme_color": "#7c5cff",
+  "lang": "ja"
+}
