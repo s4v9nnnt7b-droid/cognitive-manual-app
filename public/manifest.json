@@ -1,10 +1,18 @@
 {
-  "name": "認知書アプリ v0.1 Preview",
+  "name": "認知書アプリ",
   "short_name": "認知書",
-  "description": "心理検査結果を生活に使える認知書・自分取説へ変換する自己理解支援Webプロトタイプ",
+  "description": "認知特性を生活で使える認知書・自分取説へ変換する自己理解支援Webアプリ",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#fbf7ef",
-  "theme_color": "#7c5cff",
-  "lang": "ja"
+  "background_color": "#f7efe3",
+  "theme_color": "#6f5cff",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
 }
