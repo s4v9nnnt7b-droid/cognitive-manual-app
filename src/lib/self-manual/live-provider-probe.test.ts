@@ -82,7 +82,21 @@ liveDescribe("live self-manual-v3 provider probe", () => {
           }
         );
 
-        summaries.push({
+        const failureSummaries = repeated.runs
+          .filter((run) => run.status === "failed")
+          .map((run) => ({
+            terminalFailure: run.status === "failed" ? run.terminalFailure : null,
+            attempts: run.attempts.map((attempt) => ({
+              attempt: attempt.attempt,
+              outcome: attempt.outcome,
+              durationMs: attempt.durationMs,
+              failureKind: attempt.failureKind,
+              retryable: attempt.retryable,
+              issuePaths: attempt.issuePaths
+            }))
+          }));
+
+        const caseSummary = {
           caseId: testCase.id,
           group: testCase.group,
           repeatCount,
@@ -93,8 +107,26 @@ liveDescribe("live self-manual-v3 provider probe", () => {
           interventionPermissionAgreement: repeated.summary.interventionPermissionAgreement,
           humanReviewAgreement: repeated.summary.humanReviewAgreement,
           primaryCodeCounts: repeated.summary.primaryCodeCounts,
-          privacyBoundariesHeld: repeated.summary.privacyBoundariesHeld
-        });
+          privacyBoundariesHeld: repeated.summary.privacyBoundariesHeld,
+          failureSummaries
+        };
+        summaries.push(caseSummary);
+
+        // Print only aggregate and classified failure diagnostics before assertions.
+        // Raw episode text, raw provider output, and API credentials are intentionally omitted.
+        console.log(
+          JSON.stringify(
+            {
+              probe: "self-manual-v3-live-provider-case",
+              provider: provider.providerName,
+              model,
+              minimumAgreement,
+              summary: caseSummary
+            },
+            null,
+            2
+          )
+        );
 
         expect(repeated.summary.successfulRuns).toBe(repeatCount);
         expect(repeated.summary.allSyntaxPassed).toBe(true);
@@ -124,7 +156,6 @@ liveDescribe("live self-manual-v3 provider probe", () => {
         }
       }
 
-      // Logs contain aggregate metrics only. Raw episode text and model output are intentionally omitted.
       console.log(
         JSON.stringify(
           {
