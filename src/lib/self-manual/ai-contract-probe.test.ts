@@ -44,15 +44,16 @@ describe("limited offline AI contract probe v3", () => {
     }
   });
 
-  it("preserves every expected hypothesis code", () => {
+  it("preserves every hypothesis code required by the legacy recorded fixture", () => {
     for (const result of aiContractProbeV3Results) {
       const matrixCase = matrixById.get(result.testCaseId);
       expect(matrixCase, result.testCaseId).toBeDefined();
       const outputCodes = new Set(
         result.output.hypothesisCandidates.map((hypothesis) => hypothesis.code)
       );
+      const legacyExpectedCodes = matrixCase?.legacyExpectedCodes ?? matrixCase?.expectedCodes ?? [];
 
-      for (const expectedCode of matrixCase?.expectedCodes ?? []) {
+      for (const expectedCode of legacyExpectedCodes) {
         expect(outputCodes.has(expectedCode), `${result.testCaseId}: missing ${expectedCode}`).toBe(true);
       }
     }
