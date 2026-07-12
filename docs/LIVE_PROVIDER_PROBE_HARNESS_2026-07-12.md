@@ -8,19 +8,20 @@
 - Contract requested from the provider: `self-manual-v3`
 - Local resolver after validation: `resolver-v1`
 - Restricted three-case live smoke: passed
-- Full 12-case live probe: attempted, remediation pending rerun
+- Targeted compound-case remediation check: passed, 5/5
+- First complete 12-case live matrix: executed, semantic remediation still in progress
 - Long-term-memory writes from the probe: disabled
 - `ManualEntry` writes from the probe: disabled
 - User-facing integration: not connected
 
-This record describes the provider-isolated runtime path and its current validation state. It does not claim that the full 12-case matrix, uncurated real-world input, complete anonymization, or real-user usefulness has passed.
+This record describes the provider-isolated runtime boundary, live results, and current remediation state. It does not claim that uncurated real-world input, production anonymization, user-facing integration, or actual user benefit has been validated.
 
 ## Runtime boundary
 
 The probe uses a provider-neutral `StructuredExtractionProvider` interface. A provider may return extraction candidates only. The application then:
 
-1. validates raw output with the strict `self-manual-v3` contract
-2. applies request-correlation and evidence-source verification guards
+1. validates the raw provider output with the strict `self-manual-v3` Zod contract
+2. applies live-provider correlation and source-verification guards
 3. runs `resolver-v1` locally
 4. records syntax and semantic checks separately
 5. returns an in-memory probe result
@@ -28,7 +29,7 @@ The probe uses a provider-neutral `StructuredExtractionProvider` interface. A pr
 
 The provider cannot directly set formal rank, formal validation stage, a selected intervention, or manual promotion state.
 
-## Privacy and input minimization
+## Input minimization
 
 Before transmission, the harness:
 
@@ -37,33 +38,29 @@ Before transmission, the harness:
 - redacts HTTP and HTTPS URLs
 - redacts common phone-number formats
 - redacts numeric identifiers of 12 or more digits
-- limits transmitted text to 2,000 characters by default
-- records only redaction counts, redaction kinds, character counts, truncation status, hypothesis codes, permission booleans, and classified failures
+- limits the transmitted text to 2,000 characters by default
+- records only redaction counts, redaction kinds, character counts, and truncation status in the probe summary
 
-Aggregate logs omit raw episode text, evidence statements, raw provider output, and credentials. The minimizer reduces direct identifiers but is not a complete anonymization guarantee.
+The minimizer is a risk-reduction layer, not a complete anonymization guarantee. Names, locations, health details, and indirect identifiers can still remain unless the input is intentionally minimized or anonymized before execution.
 
 ## Live-provider guard
 
-`withLiveProviderGuards` rejects provider output when:
+`withLiveProviderGuards` is applied before formal resolution. It rejects provider output when:
 
 - the returned `episodeId` does not match the requested episode
 - `current_user_text` is labeled as anything stronger than `user_reported`
 - `behavior_log` is labeled as anything other than `observed` or `verified`
 - `formal_test` is labeled as anything other than `verified`
 
-Guard errors contain metadata paths and rule codes only.
+The guard reports metadata paths and rule codes only. It does not place raw evidence statements in guard errors.
 
-## Bounded recovery and quota handling
+## Bounded recovery policy
 
-The default runtime policy permits at most two attempts for retryable failures.
-
-Temporary timeouts, network errors, ordinary rate limits, provider server errors, missing output, malformed JSON, and schema failures may be retried under the bounded policy.
-
-Quota or billing exhaustion is separated from ordinary rate limiting and stops after one attempt. Authentication failure, provider rejection, and provider refusal are also not retried automatically.
+The default runtime policy permits at most two attempts. Temporary timeout, network, rate-limit, provider-server, missing-output, malformed-JSON, schema-validation, and live-guard failures may be retried within the explicit cap. Authentication failure, provider rejection, provider refusal, and quota exhaustion are not retried automatically.
 
 ## OpenAI Responses adapter
 
-`OpenAIResponsesExtractionProvider` uses:
+`OpenAIResponsesExtractionProvider` uses the Responses API with:
 
 - `store: false`
 - strict JSON Schema structured output
@@ -74,64 +71,92 @@ Quota or billing exhaustion is separated from ordinary rate limiting and stops a
 - HTTP error classification
 - local JSON parsing followed by Zod and live-guard validation
 
-The provider schema excludes formal rank, formal confidence, a selected intervention, duplicated evidence views, and direct `ManualEntry` promotion.
+The requested JSON Schema excludes formal `rank`, formal `confidence`, selected intervention fields, duplicated evidence views, and direct `ManualEntry` promotion.
 
 ## Restricted live smoke result
 
 Live model: `gpt-5.6-terra`.
 
-Three locked synthetic cases were run three times each, for nine live calls total.
+Three locked synthetic cases were run three times each. All nine calls passed syntax, expected-code, safety-route, and privacy-boundary checks.
 
-| Case | Successful runs | Expected code present | Primary agreement | Candidate-set agreement | Intervention agreement | Human-review agreement |
-| --- | ---: | --- | ---: | ---: | ---: | ---: |
-| outside taxonomy | 3/3 | yes | 1.0 | 1.0 | 1.0 | 1.0 |
-| insufficient information | 3/3 | yes | 1.0 | 1.0 | 1.0 | 1.0 |
-| unclear first action | 3/3 | yes | 1.0 | 0.6667 | 1.0 | 1.0 |
+- outside taxonomy: 3/3 stable, human review required, no intervention
+- insufficient information: 3/3 stable, one question, no intervention
+- first-action case: expected code present in 3/3, but the original candidate-set agreement was only two thirds
 
-All nine calls passed the strict contract and live guards. Outside-taxonomy always required human review and selected no intervention. Insufficient-information always selected no intervention and returned one additional question. Privacy-boundary flags held for every run.
+## Compound remediation
 
-## First full-matrix attempt
+The first full-matrix attempt exposed instability in `boundary-compound`. The prompt was revised so that ordinary sleep loss and fatigue remain state-load evidence, clearly mixed in-taxonomy episodes emit each supported component plus `compound`, and human review is reserved for medically concerning symptoms or genuinely outside-taxonomy content.
 
-The first 12-case-by-three-repetition run stopped on the fourth prioritized case, `boundary-compound`, because the test previously used immediate assertions inside the case loop.
+The remediated compound case was then run five times:
 
-Observed compound-case metrics:
+- successful runs: 5/5
+- primary code: `compound` in 5/5
+- candidate set: `choice_overload | compound | state_load` in 5/5
+- primary, candidate-set, intervention, and human-review agreement: 1.0
+- privacy boundaries: held in 5/5
 
-- successful provider calls: 3/3
-- syntax failures: none
-- primary codes: `compound` twice and `state_load` once
-- expected-code preservation: failed in at least one run
-- primary-hypothesis agreement: 0.6667
-- candidate-set agreement: 0.6667
-- intervention-permission agreement: 0.6667
-- human-review agreement: 0.6667
-- privacy boundaries: held in every run
+## Complete 12-case matrix findings
 
-This was a semantic and stability failure, not an API, JSON, privacy, or persistence failure.
+The remediated 12-case matrix was executed three times per case, 36 live calls total. Every provider response was syntactically valid and every privacy-boundary flag held. Stable cases included outside taxonomy, insufficient information, compound state-plus-choice load, low priority, social trigger, anxiety, and the short and long choice-overload paraphrases.
 
-## Remediation after the compound failure
+The run exposed three explicit failures and two additional semantic weaknesses:
 
-The prompt now states that:
+1. `boundary-self-explanation-conflict`
+   - expected `unclear_first_action` and `unclear_endpoint` were not both retained in every run
+   - candidate-set agreement was one third
+   - intervention permission varied
+   - self-blame was once misread as low priority
+2. `realistic-study-start`
+   - `preparation_load` was omitted in every run
+   - the original input did not explicitly describe preparation steps strongly enough
+   - intervention permission varied
+3. `paraphrase-emotional`
+   - downstream frustration was sometimes promoted to anxiety or first-action ambiguity
+   - `compound` was over-produced
+   - intervention permission varied
+4. `boundary-clear-first-action`
+   - the expected first-action code was present, but `compound` became the formal primary in all three runs
+   - the old expected-code-only check did not detect this semantic regression
+5. `boundary-low-priority`
+   - the classification was stable, but the model proposed an intervention for an explicit voluntary priority choice
 
-- when two or more distinct in-taxonomy causes are directly supported, each supported component candidate and a `compound` candidate must be emitted
-- ordinary sleep loss, fatigue, anxiety, and task load belong to state-factor analysis and do not by themselves require human review
-- human review is reserved for acute, severe, unexplained, or medically concerning physical symptoms, or content genuinely outside the taxonomy
+## Current remediation
 
-The live test now uses soft assertions so a full matrix run gathers every case before reporting failure. Safe per-run diagnostics now include primary code, candidate-code set, missing expected codes, intervention permission, selected-intervention presence, human-review state, and additional-question presence. Raw input and model prose remain omitted.
+The locked semantic contract now specifies, per case:
 
-## Current automated validation
+- allowed primary code or codes
+- exact candidate-code set
+- expected intervention permission
+- expected human-review state
+- expected additional-question state
 
-Validated Vercel Preview commit: `b7ec007bd2ecc9cd52c195f722f94ae97edb53a7`.
+The prompt now distinguishes:
 
-- ordinary test files: 7 passed
-- ordinary tests: 46 passed
-- opt-in live-provider test: 1 skipped during the ordinary build
+- first-action ambiguity from broad choice overload
+- preparation work from merely seeing several materials
+- explicit failure anxiety from downstream frustration
+- voluntary low priority from deficit
+- concurrent causes from alternative explanations or emotional consequences
+- self-blame from evidence
+
+Comparison-based self-explanation conflicts must preserve the contradiction, ask one focused question, and avoid premature intervention. The realistic study case now explicitly includes material selection, desk clearing, and page-finding setup work.
+
+## Automated validation
+
+Validated Vercel Preview commit: `1b2d1e26484c956865ca60a78a21f9d23888c45a`.
+
+- ordinary test files: 8 passed
+- ordinary tests: 52 passed
+- opt-in live test: 1 skipped during the ordinary build
 - TypeScript: passed
 - Next.js production build: passed
 - static generation: passed for `/`, `/_not-found`, and `/simple`
 - Vercel deployment state: `READY`
 
-## Current boundary and next gate
+## Current boundary
 
-The next gate is a rerun of the full 12-case matrix at three repetitions each using the remediated prompt and full-collection diagnostics.
-
-The pull request remains Draft and unmerged. The reasoning path remains isolated from the user-facing flow. Long-term memory and automatic `ManualEntry` promotion remain disabled.
+- The strict semantic remediation is ordinarily validated but has not yet been rerun live.
+- The next step is a targeted live run for the five affected cases before another complete 12-case matrix.
+- Uncurated real-world descriptions, complete anonymization, production consent and secret handling, UI integration, persistence integration, and actual user benefit remain unproven.
+- Long-term memory and automatic `ManualEntry` promotion remain disabled.
+- The pull request remains Draft and unmerged.
