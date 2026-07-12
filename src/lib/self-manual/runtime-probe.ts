@@ -8,6 +8,12 @@ import type {
   AIExtractionResult,
   ResolvedAnalysis
 } from "./analysis-contract";
+import {
+  normalizeExtractionAgainstExplicitEpisodeFacts
+} from "./extraction-normalizer";
+import type {
+  ExtractionNormalizationAudit
+} from "./extraction-normalizer";
 import type {
   HypothesisCode,
   InterventionTrial
@@ -106,6 +112,7 @@ export type PassedProbeResult = {
   attempts: ProbeAttemptRecord[];
   syntaxPassed: true;
   extraction: AIExtractionResult;
+  normalizationAudit: ExtractionNormalizationAudit;
   resolved: ResolvedAnalysis;
   checks: ProbeChecks;
 };
@@ -291,7 +298,12 @@ export async function runProviderProbe(
         minimizedText: minimized.transmittedText,
         attempt
       });
-      const extraction = aiExtractionSchema.parse(raw);
+      const parsedExtraction = aiExtractionSchema.parse(raw);
+      const normalizedExtraction = normalizeExtractionAgainstExplicitEpisodeFacts(
+        parsedExtraction,
+        minimized.transmittedText
+      );
+      const extraction = normalizedExtraction.extraction;
       const resolved = resolveAIExtraction(extraction, { trials: options.trials ?? [] });
 
       attempts.push({
@@ -314,6 +326,7 @@ export async function runProviderProbe(
         attempts,
         syntaxPassed: true,
         extraction,
+        normalizationAudit: normalizedExtraction.audit,
         resolved,
         checks: {
           semanticStatus:

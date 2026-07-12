@@ -109,6 +109,84 @@ describe("runtime provider probe", () => {
     expect(JSON.stringify(result)).not.toContain(originalText);
   });
 
+  it("applies explicit-fact normalization before deterministic resolution", async () => {
+    const extraction = validExtraction("known-completion-runtime");
+    extraction.evidence = [
+      {
+        id: "e-known",
+        kind: "reported_fact",
+        statement: "完成条件は分かっている。",
+        source: "current_user_text",
+        verification: "user_reported"
+      },
+      {
+        id: "e-fear",
+        kind: "reported_fact",
+        statement: "間違いが見つかりそうで怖かった。",
+        source: "current_user_text",
+        verification: "user_reported"
+      }
+    ];
+    extraction.hypothesisCandidates = [
+      {
+        id: "h-anxiety",
+        code: "anxiety_or_failure_avoidance",
+        label: "失敗回避",
+        supportEvidenceIds: ["e-fear"],
+        counterEvidenceIds: [],
+        stateFactorEvidenceIds: [],
+        unknowns: [],
+        rationale: "問題発見への恐怖が明示されている。"
+      },
+      {
+        id: "h-endpoint",
+        code: "unclear_endpoint",
+        label: "終了条件の曖昧さ",
+        supportEvidenceIds: ["e-known"],
+        counterEvidenceIds: [],
+        stateFactorEvidenceIds: [],
+        unknowns: [],
+        rationale: "終了条件に関する情報がある。"
+      }
+    ];
+    extraction.interventionCandidates = [
+      {
+        id: "i-anxiety",
+        hypothesisId: "h-anxiety",
+        instruction: "確認範囲を一箇所に限定して開く。",
+        observableResult: "ファイルを開けたか。"
+      },
+      {
+        id: "i-endpoint",
+        hypothesisId: "h-endpoint",
+        instruction: "終了条件を一行にする。",
+        observableResult: "開始できたか。"
+      }
+    ];
+
+    const result = await runProviderProbe(sequenceProvider([extraction]), {
+      id: "known-completion-runtime",
+      text: "完成条件は分かっているのに、間違いが見つかりそうで怖くて開けなかった。",
+      expectedCodes: ["anxiety_or_failure_avoidance"]
+    });
+
+    expect(result.status).toBe("passed");
+    if (result.status !== "passed") return;
+
+    expect(result.extraction.hypothesisCandidates.map((candidate) => candidate.code)).toEqual([
+      "anxiety_or_failure_avoidance"
+    ]);
+    expect(result.resolved.rankedHypotheses[0].code).toBe(
+      "anxiety_or_failure_avoidance"
+    );
+    expect(result.normalizationAudit).toEqual({
+      appliedRuleCodes: ["explicit_known_completion_excludes_unclear_endpoint"],
+      removedHypothesisCodes: ["unclear_endpoint"],
+      removedInterventionCount: 1
+    });
+    expect(JSON.stringify(result.normalizationAudit)).not.toContain("完成条件");
+  });
+
   it("retries a retryable provider failure once and then succeeds", async () => {
     const result = await runProviderProbe(
       sequenceProvider([
