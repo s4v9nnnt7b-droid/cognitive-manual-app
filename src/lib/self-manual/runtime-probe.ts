@@ -160,7 +160,7 @@ const directIdentifierPatterns: Array<{
 }> = [
   {
     kind: "url",
-    pattern: /https?:\/\/[^\s]+/giu,
+    pattern: /https?:\/\/[^\s、。]+/giu,
     replacement: "[URL_REDACTED]"
   },
   {
