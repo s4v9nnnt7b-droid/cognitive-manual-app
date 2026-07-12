@@ -51,6 +51,15 @@ describe("self-manual extraction prompt contract", () => {
     );
   });
 
+  it("requires all directly stated components for explicit choice-plus-preparation episodes", () => {
+    expect(selfManualExtractionSystemPrompt).toContain(
+      "emit choice_overload, preparation_load, and compound together"
+    );
+    expect(selfManualExtractionSystemPrompt).toContain(
+      "Do not omit either directly stated component"
+    );
+  });
+
   it("keeps ordinary sleep loss and fatigue inside state-load analysis", () => {
     expect(selfManualExtractionSystemPrompt).toContain(
       "ordinary sleep loss, fatigue, anxiety, or task load"
