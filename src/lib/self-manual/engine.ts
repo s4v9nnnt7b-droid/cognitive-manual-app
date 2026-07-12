@@ -34,6 +34,15 @@ export function assessConfidence(
   const counterEvidence = hypothesis.counterEvidenceIds
     .map((id) => evidenceById.get(id))
     .filter((item): item is EpisodeEvidence => Boolean(item));
+  const stateFactorEvidence = hypothesis.stateFactorEvidenceIds
+    .map((id) => evidenceById.get(id))
+    .filter((item): item is EpisodeEvidence => Boolean(item));
+  const unresolvedStateFactorEvidenceIds = hypothesis.stateFactorEvidenceIds.filter(
+    (id) => !evidenceById.has(id)
+  );
+  const invalidStateFactorEvidence = stateFactorEvidence.filter(
+    (item) => item.kind !== "state_factor"
+  );
   const relevantTrials = trials.filter((trial) => trial.hypothesisId === hypothesis.id);
   const helpedTrials = relevantTrials.filter((trial) => trial.outcome === "helped");
   const helpedContexts = groupCount(helpedTrials.map((trial) => trial.contextKey));
@@ -135,13 +144,19 @@ export function assessConfidence(
     });
   }
 
-  if (hypothesis.stateFactors.length > 0 && !supportEvidence.some((item) => item.kind === "state_factor")) {
+  if (
+    hypothesis.stateFactorEvidenceIds.length > 0 &&
+    (unresolvedStateFactorEvidenceIds.length > 0 || invalidStateFactorEvidence.length > 0)
+  ) {
     negativeFactors.push({
       code: "state_not_separated",
       direction: "down",
       weight: 1,
-      reason: "一時状態の影響がまだ分離されていない。",
-      evidenceIds: []
+      reason: "状態要因の証拠参照が未解決、または状態要因以外を参照している。",
+      evidenceIds: [
+        ...unresolvedStateFactorEvidenceIds,
+        ...invalidStateFactorEvidence.map((item) => item.id)
+      ]
     });
   }
 

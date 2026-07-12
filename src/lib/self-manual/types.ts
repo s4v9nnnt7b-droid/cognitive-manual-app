@@ -123,7 +123,7 @@ export type HypothesisState = {
   supportEvidenceIds: string[];
   counterEvidenceIds: string[];
   unknowns: string[];
-  stateFactors: string[];
+  stateFactorEvidenceIds: string[];
   confidence: ConfidenceAssessment;
   history: HypothesisHistoryEvent[];
 };

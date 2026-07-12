@@ -614,7 +614,7 @@ export function materializeHypothesisStates(
     supportEvidenceIds: [...hypothesis.supportEvidenceIds],
     counterEvidenceIds: [...hypothesis.counterEvidenceIds],
     unknowns: [...hypothesis.unknowns],
-    stateFactors: [...hypothesis.stateFactorEvidenceIds],
+    stateFactorEvidenceIds: [...hypothesis.stateFactorEvidenceIds],
     confidence: hypothesis.confidence,
     history: [
       {

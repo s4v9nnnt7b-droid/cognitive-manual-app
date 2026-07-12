@@ -34,7 +34,7 @@ const makeHypothesis = (input: Partial<HypothesisState> & Pick<HypothesisState, 
   supportEvidenceIds: input.supportEvidenceIds ?? [],
   counterEvidenceIds: input.counterEvidenceIds ?? [],
   unknowns: input.unknowns ?? [],
-  stateFactors: input.stateFactors ?? [],
+  stateFactorEvidenceIds: input.stateFactorEvidenceIds ?? [],
   confidence: input.confidence ?? emptyConfidence,
   history: input.history ?? []
 });
@@ -278,6 +278,42 @@ describe("intervention trial transitions", () => {
 });
 
 describe("confidence stages", () => {
+  it("does not penalize a valid materialized state-factor evidence reference", () => {
+    const stateEvidence = makeEvidence({
+      id: "state-sleep-loss",
+      kind: "state_factor",
+      statement: "寝不足だった",
+      reliability: "medium"
+    });
+    const hypothesis = makeHypothesis({
+      id: "hypothesis-state",
+      code: "state_load",
+      supportEvidenceIds: [stateEvidence.id],
+      stateFactorEvidenceIds: [stateEvidence.id]
+    });
+
+    const confidence = assessConfidence(hypothesis, [stateEvidence], []);
+
+    expect(confidence.negativeFactors.map((factor) => factor.code)).not.toContain(
+      "state_not_separated"
+    );
+  });
+
+  it("penalizes an unresolved state-factor evidence reference with an auditable ID", () => {
+    const hypothesis = makeHypothesis({
+      id: "hypothesis-unresolved-state",
+      code: "state_load",
+      stateFactorEvidenceIds: ["missing-state-evidence"]
+    });
+
+    const confidence = assessConfidence(hypothesis, [], []);
+    const factor = confidence.negativeFactors.find(
+      (item) => item.code === "state_not_separated"
+    );
+
+    expect(factor?.evidenceIds).toEqual(["missing-state-evidence"]);
+  });
+
   it("reaches conditionally high only after repeated and cross-context evidence", () => {
     const evidence = [
       makeEvidence({ id: "support-self", source: "self_report", userConfirmed: true }),

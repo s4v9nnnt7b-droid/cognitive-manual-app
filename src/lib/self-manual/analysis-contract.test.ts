@@ -7,7 +7,8 @@ import {
   resolveAIExtraction
 } from "./analysis-contract";
 import type { AIExtractionResult } from "./analysis-contract";
-import type { InterventionTrial } from "./types";
+import { assessConfidence } from "./engine";
+import type { EpisodeEvidence, InterventionTrial } from "./types";
 
 const normalSafety = {
   isDiagnosis: false as const,
@@ -290,7 +291,71 @@ describe("two-stage analysis resolver", () => {
     expect(resolved.selectedIntervention?.id).toBe("intervention-strong-only");
   });
 
-    it("materializes formal hypothesis state only from the resolved result", () => {
+  it("materializes state-factor evidence IDs without a false separation penalty", () => {
+    const extraction = aiExtractionSchema.parse({
+      analysisVersion: "self-manual-v3",
+      episodeId: "state-materialization",
+      evidence: [
+        {
+          id: "e-state",
+          kind: "state_factor",
+          statement: "寝不足で疲れていた",
+          source: "current_user_text",
+          verification: "user_reported"
+        }
+      ],
+      hypothesisCandidates: [
+        {
+          id: "h-state",
+          code: "state_load",
+          label: "現在状態の負荷",
+          supportEvidenceIds: ["e-state"],
+          counterEvidenceIds: [],
+          stateFactorEvidenceIds: ["e-state"],
+          unknowns: [],
+          rationale: "寝不足と疲労が明示されている"
+        }
+      ],
+      contradictions: [],
+      additionalQuestions: [],
+      interventionCandidates: [
+        {
+          id: "i-state",
+          hypothesisId: "h-state",
+          instruction: "作業量を一つに減らす",
+          observableResult: "一つに減らした後に開始できたか"
+        }
+      ],
+      safety: normalSafety
+    });
+    const resolved = resolveAIExtraction(extraction);
+    const state = materializeHypothesisStates(
+      resolved,
+      "2026-07-12T04:25:00.000Z"
+    )[0];
+    const evidence: EpisodeEvidence = {
+      id: "e-state",
+      episodeId: "state-materialization",
+      source: "self_report",
+      kind: "state_factor",
+      statement: "寝不足で疲れていた",
+      occurredAt: "2026-07-12T04:00:00.000Z",
+      recordedAt: "2026-07-12T04:00:00.000Z",
+      context: { contextKey: "study-home", taskType: "study" },
+      userConfirmed: true,
+      reliability: "medium"
+    };
+
+    const confidence = assessConfidence(state, [evidence], []);
+
+    expect(state.stateFactorEvidenceIds).toEqual(["e-state"]);
+    expect(state).not.toHaveProperty(["state", "Factors"].join(""));
+    expect(confidence.negativeFactors.map((factor) => factor.code)).not.toContain(
+      "state_not_separated"
+    );
+  });
+
+  it("materializes formal hypothesis state only from the resolved result", () => {
     const resolved = resolveAIExtraction(makeResolutionCase());
     const states = materializeHypothesisStates(resolved, "2026-07-12T04:30:00.000Z");
 
