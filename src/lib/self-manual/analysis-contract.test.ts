@@ -175,7 +175,122 @@ describe("two-stage analysis resolver", () => {
     expect(resolved.auditReasons.selectedInterventionReason).toContain("未試行を優先");
   });
 
-  it("materializes formal hypothesis state only from the resolved result", () => {
+  it("prioritizes a grounded compound candidate over its directly supported components", () => {
+    const extraction = aiExtractionSchema.parse({
+      analysisVersion: "self-manual-v3",
+      episodeId: "compound-ranking",
+      evidence: [
+        {
+          id: "e-choice",
+          kind: "reported_fact",
+          statement: "複数教材から一冊を選ぶ必要があった",
+          source: "current_user_text",
+          verification: "user_reported"
+        },
+        {
+          id: "e-preparation",
+          kind: "reported_fact",
+          statement: "机を片づけて該当ページを探す必要があった",
+          source: "behavior_log",
+          verification: "observed"
+        }
+      ],
+      hypothesisCandidates: [
+        {
+          id: "h-choice",
+          code: "choice_overload",
+          label: "選択過多",
+          supportEvidenceIds: ["e-choice"],
+          counterEvidenceIds: [],
+          stateFactorEvidenceIds: [],
+          unknowns: [],
+          rationale: "教材選択が必要だった"
+        },
+        {
+          id: "h-preparation",
+          code: "preparation_load",
+          label: "準備負荷",
+          supportEvidenceIds: ["e-preparation"],
+          counterEvidenceIds: [],
+          stateFactorEvidenceIds: [],
+          unknowns: [],
+          rationale: "開始前の準備が必要だった"
+        },
+        {
+          id: "h-compound",
+          code: "compound",
+          label: "選択と準備の複合",
+          supportEvidenceIds: ["e-choice"],
+          counterEvidenceIds: [],
+          stateFactorEvidenceIds: [],
+          unknowns: [],
+          rationale: "選択と準備が同時に開始を妨げた"
+        }
+      ],
+      contradictions: [],
+      additionalQuestions: [],
+      interventionCandidates: [
+        {
+          id: "intervention-compound",
+          hypothesisId: "h-compound",
+          instruction: "使う教材一冊と開くページだけを先に表示する",
+          observableResult: "表示後に開始できたか"
+        }
+      ],
+      safety: normalSafety
+    });
+
+    const resolved = resolveAIExtraction(extraction);
+
+    expect(resolved.rankedHypotheses[0].code).toBe("compound");
+    expect(resolved.rankedHypotheses[0].priorityScore).toBeGreaterThan(
+      resolved.rankedHypotheses[1].priorityScore
+    );
+    expect(resolved.selectedIntervention?.id).toBe("intervention-compound");
+    expect(resolved.interventionAllowed).toBe(true);
+    expect(
+      resolved.auditReasons.rankIncreaseReasons.find(
+        (item) => item.hypothesisId === "h-compound"
+      )?.reasons
+    ).toContain("直接支持された構成要因2件を統合する複合仮説を優先");
+  });
+
+  it("does not promote compound without two directly supported component candidates", () => {
+    const extraction = makeResolutionCase();
+    const strong = extraction.hypothesisCandidates.find(
+      (candidate) => candidate.id === "h-strong"
+    )!;
+
+    extraction.hypothesisCandidates = [
+      strong,
+      {
+        id: "h-single-compound",
+        code: "compound",
+        label: "根拠不足の複合候補",
+        supportEvidenceIds: ["e-weak-support"],
+        counterEvidenceIds: [],
+        stateFactorEvidenceIds: [],
+        unknowns: [],
+        rationale: "一つの構成要因しか直接支持されていない"
+      }
+    ];
+    extraction.interventionCandidates = [
+      {
+        id: "intervention-strong-only",
+        hypothesisId: "h-strong",
+        instruction: "最初の操作だけを表示する",
+        observableResult: "開始できたか"
+      }
+    ];
+
+    const resolved = resolveAIExtraction(aiExtractionSchema.parse(extraction));
+
+    expect(resolved.rankedHypotheses[0].id).toBe("h-strong");
+    expect(resolved.rankedHypotheses[0].code).toBe("unclear_first_action");
+    expect(resolved.selectedIntervention?.id).toBe("intervention-strong-only");
+  });
+
+    it("materializes formal hypothesis state only from the resolved result", () => {
     const resolved = resolveAIExtraction(makeResolutionCase());
     const states = materializeHypothesisStates(resolved, "2026-07-12T04:30:00.000Z");
 

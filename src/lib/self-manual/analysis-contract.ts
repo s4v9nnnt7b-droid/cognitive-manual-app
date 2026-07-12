@@ -471,6 +471,31 @@ export function resolveAIExtraction(
     };
   });
 
+  const compoundItem = scored.find((item) => item.candidate.code === "compound");
+  const directlySupportedComponentItems = scored.filter(
+    (item) =>
+      item.candidate.code !== "compound" &&
+      !unknownHypothesisCodes.has(item.candidate.code) &&
+      (item.candidate.supportEvidenceIds.length > 0 ||
+        item.candidate.stateFactorEvidenceIds.length > 0)
+  );
+  const compoundIsGrounded =
+    compoundItem !== undefined &&
+    (compoundItem.candidate.supportEvidenceIds.length > 0 ||
+      compoundItem.candidate.stateFactorEvidenceIds.length > 0);
+
+  if (compoundItem && compoundIsGrounded && directlySupportedComponentItems.length >= 2) {
+    const strongestComponentScore = Math.max(
+      ...directlySupportedComponentItems.map((item) => item.score)
+    );
+    if (compoundItem.score <= strongestComponentScore) {
+      compoundItem.score = strongestComponentScore + 1;
+      compoundItem.increases.push(
+        `直接支持された構成要因${directlySupportedComponentItems.length}件を統合する複合仮説を優先`
+      );
+    }
+  }
+
   scored.sort((left, right) => {
     if (right.score !== left.score) return right.score - left.score;
     if (left.candidate.code !== right.candidate.code) {
