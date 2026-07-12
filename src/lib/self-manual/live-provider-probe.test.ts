@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { withLiveProviderGuards } from "./live-provider-guard";
 import { OpenAIResponsesExtractionProvider } from "./openai-responses-provider";
+import { withQuotaExhaustionGuard } from "./quota-exhaustion-guard";
 import { runRepeatedProviderProbe } from "./runtime-probe";
 import { contractTestMatrix } from "./test-matrix";
 
@@ -56,12 +57,14 @@ liveDescribe("live self-manual-v3 provider probe", () => {
       );
       const minimumAgreement = boundedRatio(process.env.LIVE_PROBE_MIN_AGREEMENT, 2 / 3);
       const provider = withLiveProviderGuards(
-        new OpenAIResponsesExtractionProvider({
-          apiKey,
-          model,
-          timeoutMs: 60_000,
-          maxOutputTokens: 4_000
-        })
+        withQuotaExhaustionGuard(
+          new OpenAIResponsesExtractionProvider({
+            apiKey,
+            model,
+            timeoutMs: 60_000,
+            maxOutputTokens: 4_000
+          })
+        )
       );
 
       const summaries: Array<Record<string, unknown>> = [];
