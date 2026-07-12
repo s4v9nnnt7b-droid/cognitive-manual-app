@@ -1,0 +1,196 @@
+name: Apply compound resolver rule
+
+on:
+  push:
+    branches:
+      - agent/simple-diagnosis-mvp
+    paths:
+      - .github/workflows/apply-compound-resolver-rule.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/simple-diagnosis-mvp
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply deterministic compound-ranking rule
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          contract = Path('src/lib/self-manual/analysis-contract.ts')
+          text = contract.read_text(encoding='utf-8')
+          marker = '直接支持された構成要因'
+          if marker not in text:
+              needle = '''  const scored = extraction.hypothesisCandidates.map((candidate) => {
+            const scoring = candidateScore(candidate, evidenceById);
+            return {
+              candidate,
+              ...scoring,
+              confidence: assessCandidateConfidence(candidate, evidenceById)
+            };
+          });
+
+          scored.sort((left, right) => {'''
+              replacement = '''  const scored = extraction.hypothesisCandidates.map((candidate) => {
+            const scoring = candidateScore(candidate, evidenceById);
+            return {
+              candidate,
+              ...scoring,
+              confidence: assessCandidateConfidence(candidate, evidenceById)
+            };
+          });
+
+          const compoundItem = scored.find((item) => item.candidate.code === "compound");
+          const directlySupportedComponentItems = scored.filter(
+            (item) =>
+              item.candidate.code !== "compound" &&
+              !unknownHypothesisCodes.has(item.candidate.code) &&
+              (item.candidate.supportEvidenceIds.length > 0 ||
+                item.candidate.stateFactorEvidenceIds.length > 0)
+          );
+          const compoundIsGrounded =
+            compoundItem !== undefined &&
+            (compoundItem.candidate.supportEvidenceIds.length > 0 ||
+              compoundItem.candidate.stateFactorEvidenceIds.length > 0);
+
+          if (compoundItem && compoundIsGrounded && directlySupportedComponentItems.length >= 2) {
+            const strongestComponentScore = Math.max(
+              ...directlySupportedComponentItems.map((item) => item.score)
+            );
+            if (compoundItem.score <= strongestComponentScore) {
+              compoundItem.score = strongestComponentScore + 1;
+              compoundItem.increases.push(
+                `直接支持された構成要因${directlySupportedComponentItems.length}件を統合する複合仮説を優先`
+              );
+            }
+          }
+
+          scored.sort((left, right) => {'''
+              if text.count(needle) != 1:
+                  raise SystemExit('analysis-contract insertion anchor mismatch')
+              text = text.replace(needle, replacement)
+              contract.write_text(text, encoding='utf-8')
+
+          tests = Path('src/lib/self-manual/analysis-contract.test.ts')
+          test_text = tests.read_text(encoding='utf-8')
+          test_marker = 'prioritizes a grounded compound candidate over its directly supported components'
+          if test_marker not in test_text:
+              anchor = '''  it("materializes formal hypothesis state only from the resolved result", () => {'''
+              addition = '''  it("prioritizes a grounded compound candidate over its directly supported components", () => {
+            const extraction = aiExtractionSchema.parse({
+              analysisVersion: "self-manual-v3",
+              episodeId: "compound-ranking",
+              evidence: [
+                {
+                  id: "e-choice",
+                  kind: "reported_fact",
+                  statement: "複数教材から一冊を選ぶ必要があった",
+                  source: "current_user_text",
+                  verification: "user_reported"
+                },
+                {
+                  id: "e-preparation",
+                  kind: "reported_fact",
+                  statement: "机を片づけて該当ページを探す必要があった",
+                  source: "behavior_log",
+                  verification: "observed"
+                }
+              ],
+              hypothesisCandidates: [
+                {
+                  id: "h-choice",
+                  code: "choice_overload",
+                  label: "選択過多",
+                  supportEvidenceIds: ["e-choice"],
+                  counterEvidenceIds: [],
+                  stateFactorEvidenceIds: [],
+                  unknowns: [],
+                  rationale: "教材選択が必要だった"
+                },
+                {
+                  id: "h-preparation",
+                  code: "preparation_load",
+                  label: "準備負荷",
+                  supportEvidenceIds: ["e-preparation"],
+                  counterEvidenceIds: [],
+                  stateFactorEvidenceIds: [],
+                  unknowns: [],
+                  rationale: "開始前の準備が必要だった"
+                },
+                {
+                  id: "h-compound",
+                  code: "compound",
+                  label: "選択と準備の複合",
+                  supportEvidenceIds: ["e-choice"],
+                  counterEvidenceIds: [],
+                  stateFactorEvidenceIds: [],
+                  unknowns: [],
+                  rationale: "選択と準備が同時に開始を妨げた"
+                }
+              ],
+              contradictions: [],
+              additionalQuestions: [],
+              interventionCandidates: [
+                {
+                  id: "intervention-compound",
+                  hypothesisId: "h-compound",
+                  instruction: "使う教材一冊と開くページだけを先に表示する",
+                  observableResult: "表示後に開始できたか"
+                }
+              ],
+              safety: normalSafety
+            });
+
+            const resolved = resolveAIExtraction(extraction);
+
+            expect(resolved.rankedHypotheses[0].code).toBe("compound");
+            expect(resolved.rankedHypotheses[0].priorityScore).toBeGreaterThan(
+              resolved.rankedHypotheses[1].priorityScore
+            );
+            expect(resolved.selectedIntervention?.id).toBe("intervention-compound");
+            expect(resolved.interventionAllowed).toBe(true);
+            expect(
+              resolved.auditReasons.rankIncreaseReasons.find(
+                (item) => item.hypothesisId === "h-compound"
+              )?.reasons
+            ).toContain("直接支持された構成要因2件を統合する複合仮説を優先");
+          });
+
+          ''' + anchor
+              if test_text.count(anchor) != 1:
+                  raise SystemExit('analysis-contract.test insertion anchor mismatch')
+              test_text = test_text.replace(anchor, addition)
+              tests.write_text(test_text, encoding='utf-8')
+          PY
+
+      - name: Validate
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No patch needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/self-manual/analysis-contract.ts src/lib/self-manual/analysis-contract.test.ts
+          git commit -m "Stabilize compound resolver ranking"
+          git push origin HEAD:agent/simple-diagnosis-mvp
