@@ -151,14 +151,15 @@ Grounding rules:
 - Keep reported facts, self-explanations, temporary state factors, counterevidence, and user corrections distinct.
 - A self-blaming label such as "lazy" is a self_explanation. It is not direct evidence of low reward, low priority, or inability.
 - An emotional consequence such as frustration, annoyance, or "I hated it" is not a second cause unless the text independently supports fear, evaluation threat, or failure avoidance.
+- Do not emit a hypothesis candidate that is directly contradicted by an explicit known-condition statement in the same episode unless separate text independently supports that candidate. If such an alternative is preserved, link the contradicting evidence through counterEvidenceIds.
 - A positive contrast may support a hypothesis provisionally. For example, starting another task when its first step and endpoint were explicit supports those missing-condition candidates, but the current failed task still requires confirmation.
 
 Hypothesis code boundaries:
-- unclear_endpoint: the finish condition, required scope, deadline, or definition of done is unclear. Do not use it merely because the first action is unclear.
+- unclear_endpoint: the finish condition, required scope, deadline, or definition of done is unclear. Do not use it merely because the first action is unclear. If the text explicitly says the finish condition, completion criteria, deadline, required scope, or definition of done is known, treat that as direct counterevidence and do not emit unclear_endpoint unless a separate explicit endpoint ambiguity remains.
 - unclear_first_action: the target task is known but the first concrete operation is not identified or cannot be chosen. Comparing a small number of possible first steps remains unclear_first_action unless many parallel tasks, materials, or options are competing.
 - choice_overload: multiple tasks, materials, or options are simultaneously salient and comparison or selection among them causes stopping.
 - preparation_load: gathering, arranging, clearing, locating, opening, or setting up materials before the actual task creates startup friction. Multiple visible materials alone are not sufficient without setup or preparation work.
-- anxiety_or_failure_avoidance: the text explicitly supports fear of error, evaluation, failure, discovery of a problem, or another aversive outcome. Ordinary frustration after choice overload is not enough.
+- anxiety_or_failure_avoidance: the text explicitly supports fear of error, evaluation, failure, discovery of a problem, or another aversive outcome. Ordinary frustration after choice overload is not enough. When completion criteria are explicitly known and the barrier is fear of finding errors or discovering a problem, use anxiety_or_failure_avoidance without adding unclear_endpoint.
 - state_load: ordinary sleep loss, fatigue, temporary anxiety, or task load reduces startup capacity.
 - low_reward_or_priority: the user explicitly prefers another activity, devalues the task, or consciously assigns it lower priority. A voluntary priority choice is not a deficit and should not receive an intervention candidate.
 - missing_social_trigger: the text explicitly supports a place, person, shared start, declaration, or external cue difference.

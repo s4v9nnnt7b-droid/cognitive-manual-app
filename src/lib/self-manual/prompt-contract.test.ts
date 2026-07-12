@@ -39,6 +39,18 @@ describe("self-manual extraction prompt contract", () => {
     );
   });
 
+  it("uses explicit known completion criteria as counterevidence to endpoint ambiguity", () => {
+    expect(selfManualExtractionSystemPrompt).toContain(
+      "directly contradicted by an explicit known-condition statement"
+    );
+    expect(selfManualExtractionSystemPrompt).toContain(
+      "treat that as direct counterevidence and do not emit unclear_endpoint"
+    );
+    expect(selfManualExtractionSystemPrompt).toContain(
+      "fear of finding errors or discovering a problem"
+    );
+  });
+
   it("keeps ordinary sleep loss and fatigue inside state-load analysis", () => {
     expect(selfManualExtractionSystemPrompt).toContain(
       "ordinary sleep loss, fatigue, anxiety, or task load"
