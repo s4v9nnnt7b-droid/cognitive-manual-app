@@ -4,9 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm test",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "probe:live": "vitest run src/lib/self-manual/live-provider-probe.test.ts"
   },
   "dependencies": {
     "@types/node": "latest",
@@ -15,7 +19,10 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "typescript": "latest"
+    "typescript": "5.9.3",
+    "zod": "^3.24.2"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "vitest": "^2.1.9"
+  }
 }
