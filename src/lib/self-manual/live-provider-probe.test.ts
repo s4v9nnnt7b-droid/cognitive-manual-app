@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { withLiveProviderGuards } from "./live-provider-guard";
+import { selectLiveProbeCases } from "./live-probe-case-selection";
 import { OpenAIResponsesExtractionProvider } from "./openai-responses-provider";
 import { withQuotaExhaustionGuard } from "./quota-exhaustion-guard";
 import { runRepeatedProviderProbe } from "./runtime-probe";
@@ -23,20 +24,6 @@ function boundedRatio(value: string | undefined, fallback: number): number {
   return Math.min(1, Math.max(0, parsed));
 }
 
-function prioritizedCases(limit: number) {
-  const priorityIds = [
-    "boundary-outside-taxonomy",
-    "boundary-insufficient",
-    "boundary-clear-first-action"
-  ];
-  const byId = new Map(contractTestMatrix.map((testCase) => [testCase.id, testCase]));
-  const ordered = [
-    ...priorityIds.map((id) => byId.get(id)).filter((value): value is (typeof contractTestMatrix)[number] => Boolean(value)),
-    ...contractTestMatrix.filter((testCase) => !priorityIds.includes(testCase.id))
-  ];
-  return ordered.slice(0, limit);
-}
-
 liveDescribe("live self-manual-v3 provider probe", () => {
   it(
     "runs minimized locked cases repeatedly without memory or ManualEntry writes",
@@ -55,6 +42,7 @@ liveDescribe("live self-manual-v3 provider probe", () => {
         1,
         contractTestMatrix.length
       );
+      const selectedCases = selectLiveProbeCases(caseLimit, process.env.LIVE_PROBE_CASE_IDS);
       const minimumAgreement = boundedRatio(process.env.LIVE_PROBE_MIN_AGREEMENT, 2 / 3);
       const provider = withLiveProviderGuards(
         withQuotaExhaustionGuard(
@@ -68,7 +56,7 @@ liveDescribe("live self-manual-v3 provider probe", () => {
       );
 
       const summaries: Array<Record<string, unknown>> = [];
-      for (const testCase of prioritizedCases(caseLimit)) {
+      for (const testCase of selectedCases) {
         const repeated = await runRepeatedProviderProbe(
           provider,
           {
@@ -196,7 +184,8 @@ liveDescribe("live self-manual-v3 provider probe", () => {
             probe: "self-manual-v3-live-provider",
             provider: provider.providerName,
             model,
-            caseLimit,
+            caseLimit: selectedCases.length,
+            selectedCaseIds: selectedCases.map((testCase) => testCase.id),
             repeatCount,
             minimumAgreement,
             summaries
