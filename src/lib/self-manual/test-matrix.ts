@@ -5,6 +5,7 @@ export type ContractTestCase = {
   group: "boundary" | "realistic" | "paraphrase";
   input: string;
   expectedCodes: HypothesisCode[];
+  legacyExpectedCodes?: HypothesisCode[];
   expectedPrimaryCodes: HypothesisCode[];
   expectedCandidateCodes: HypothesisCode[];
   expectedInterventionAllowed: boolean;
@@ -91,6 +92,7 @@ export const contractTestMatrix: ContractTestCase[] = [
     group: "realistic",
     input: "鑑定理論をやる予定で、何をやるかは分かっていた。机の上に教材が何冊も積まれ、今日使う一冊を選び、机を片づけて該当ページを探す準備が必要だと思ううちに、スマホを見続けて夜になった。",
     expectedCodes: ["choice_overload", "preparation_load", "compound"],
+    legacyExpectedCodes: ["choice_overload", "preparation_load"],
     expectedPrimaryCodes: ["compound"],
     expectedCandidateCodes: ["choice_overload", "compound", "preparation_load"],
     expectedInterventionAllowed: true,
