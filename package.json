@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npm test",
+    "prebuild": "node -e \"require('fs').copyFileSync('package-lock.json','public/package-lock.generated.json')\" && npm test",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
