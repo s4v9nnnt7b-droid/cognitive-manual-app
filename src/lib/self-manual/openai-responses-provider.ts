@@ -150,10 +150,13 @@ Rules:
 - Extract statements grounded in the supplied text. Do not invent history, diagnoses, test results, medication effects, or observer evidence.
 - Keep reported facts, self-explanations, temporary state factors, counterevidence, and user corrections distinct.
 - Generate multiple hypothesis candidates when more than one explanation is plausible.
+- When two or more distinct in-taxonomy causes are directly supported, include each supported component candidate and also include a compound candidate. Do not collapse a clearly mixed episode to only one component or only the compound candidate.
+- Common temporary state factors such as ordinary sleep loss, fatigue, anxiety, or task load belong to state_factor evidence and state_load or compound hypotheses. They do not by themselves require human review and must not be treated as outside taxonomy.
+- Require human review only for acute, severe, unexplained, or medically concerning physical symptoms, or for content genuinely outside the available taxonomy.
 - Do not assign a formal rank, confidence score, truth probability, or selected intervention. The application resolver owns those decisions.
 - Intervention entries are candidates only. Each must target a non-unknown hypothesis candidate and be small, observable, non-medical, and executable without professional supervision.
 - For insufficient information, unknown, or outside-taxonomy cases, ask at most one focused question and do not create an intervention candidate for that candidate.
-- Physical symptoms or content outside the taxonomy require human review. Do not diagnose or advise medication.
+- Do not diagnose or advise medication.
 - IDs need only be unique and internally consistent within this response.
 - Return only the requested structured output.`;
 
