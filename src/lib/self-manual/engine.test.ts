@@ -75,21 +75,38 @@ const makeTrial = (
 });
 
 describe("AI analysis contract", () => {
-  it("keeps facts, self explanation, hypotheses, unknowns, and safety separated", () => {
+  it("keeps reported facts, self explanation, hypotheses, unknowns, and safety separated", () => {
     const parsed = aiAnalysisSchema.parse({
-      analysisVersion: "self-manual-v1",
+      analysisVersion: "self-manual-v2",
       episodeId: "episode-1",
-      facts: ["教材を開かなかった"],
-      selfExplanation: ["怠けていると思う"],
+      evidence: [
+        {
+          id: "evidence-fact",
+          kind: "reported_fact",
+          statement: "教材を開かなかった",
+          source: "current_user_text",
+          verification: "user_reported"
+        },
+        {
+          id: "evidence-self-explanation",
+          kind: "self_explanation",
+          statement: "怠けていると思う",
+          source: "current_user_text",
+          verification: "user_reported"
+        }
+      ],
+      factEvidenceIds: ["evidence-fact"],
+      selfExplanationEvidenceIds: ["evidence-self-explanation"],
       hypotheses: [
         {
           id: "hypothesis-unknown",
+          rank: 1,
           code: "insufficient_information",
           label: "情報不足",
-          supportEvidenceIds: [],
+          supportEvidenceIds: ["evidence-fact"],
           counterEvidenceIds: [],
+          stateFactorEvidenceIds: [],
           unknowns: ["止まった時点"],
-          stateFactors: [],
           confidence: "low",
           rationale: "原因を区別する情報が足りない"
         }
@@ -105,25 +122,35 @@ describe("AI analysis contract", () => {
       }
     });
 
-    expect(parsed.facts).toEqual(["教材を開かなかった"]);
-    expect(parsed.selfExplanation).toEqual(["怠けていると思う"]);
+    expect(parsed.factEvidenceIds).toEqual(["evidence-fact"]);
+    expect(parsed.selfExplanationEvidenceIds).toEqual(["evidence-self-explanation"]);
   });
 
-  it("rejects an unknown path without a next confirmation question", () => {
+  it("rejects an unknown path without exactly one next confirmation question", () => {
     const result = aiAnalysisSchema.safeParse({
-      analysisVersion: "self-manual-v1",
+      analysisVersion: "self-manual-v2",
       episodeId: "episode-1",
-      facts: [],
-      selfExplanation: [],
+      evidence: [
+        {
+          id: "evidence-input",
+          kind: "reported_fact",
+          statement: "なんとなくできなかった",
+          source: "current_user_text",
+          verification: "user_reported"
+        }
+      ],
+      factEvidenceIds: ["evidence-input"],
+      selfExplanationEvidenceIds: [],
       hypotheses: [
         {
           id: "hypothesis-unknown",
+          rank: 1,
           code: "unknown",
           label: "現時点では不明",
-          supportEvidenceIds: [],
+          supportEvidenceIds: ["evidence-input"],
           counterEvidenceIds: [],
+          stateFactorEvidenceIds: [],
           unknowns: ["原因"],
-          stateFactors: [],
           confidence: "low",
           rationale: "情報不足"
         }
