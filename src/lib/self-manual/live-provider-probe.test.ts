@@ -99,6 +99,33 @@ liveDescribe("live self-manual-v3 provider probe", () => {
             }))
           }));
 
+        const runSummaries = repeated.runs.map((run, index) => {
+          if (run.status === "failed") {
+            return {
+              run: index + 1,
+              status: run.status,
+              failureKind: run.terminalFailure.kind
+            };
+          }
+
+          const candidateCodes = run.resolved.rankedHypotheses
+            .map((hypothesis) => hypothesis.code)
+            .sort();
+          const candidateCodeSet = new Set(candidateCodes);
+
+          return {
+            run: index + 1,
+            status: run.status,
+            primaryCode: run.resolved.rankedHypotheses[0].code,
+            candidateCodes,
+            missingExpectedCodes: testCase.expectedCodes.filter((code) => !candidateCodeSet.has(code)),
+            interventionAllowed: run.resolved.interventionAllowed,
+            selectedInterventionPresent: run.resolved.selectedIntervention !== null,
+            humanReviewRequired: run.resolved.humanReviewRequired,
+            additionalQuestionPresent: run.resolved.additionalQuestion !== null
+          };
+        });
+
         const caseSummary = {
           caseId: testCase.id,
           group: testCase.group,
@@ -110,13 +137,15 @@ liveDescribe("live self-manual-v3 provider probe", () => {
           interventionPermissionAgreement: repeated.summary.interventionPermissionAgreement,
           humanReviewAgreement: repeated.summary.humanReviewAgreement,
           primaryCodeCounts: repeated.summary.primaryCodeCounts,
+          candidateSetCounts: repeated.summary.candidateSetCounts,
           privacyBoundariesHeld: repeated.summary.privacyBoundariesHeld,
+          runSummaries,
           failureSummaries
         };
         summaries.push(caseSummary);
 
-        // Print only aggregate and classified failure diagnostics before assertions.
-        // Raw episode text, raw provider output, and API credentials are intentionally omitted.
+        // Print only aggregate metadata and classified failures before assertions.
+        // Raw episode text, evidence statements, model prose, and credentials are intentionally omitted.
         console.log(
           JSON.stringify(
             {
@@ -131,30 +160,32 @@ liveDescribe("live self-manual-v3 provider probe", () => {
           )
         );
 
-        expect(repeated.summary.successfulRuns).toBe(repeatCount);
-        expect(repeated.summary.allSyntaxPassed).toBe(true);
-        expect(repeated.summary.allSemanticChecksPassed).toBe(true);
-        expect(repeated.summary.privacyBoundariesHeld).toBe(true);
-        expect(repeated.summary.primaryHypothesisAgreement).toBeGreaterThanOrEqual(minimumAgreement);
-        expect(repeated.summary.candidateSetAgreement).toBeGreaterThanOrEqual(minimumAgreement);
-        expect(repeated.summary.interventionPermissionAgreement).toBe(1);
-        expect(repeated.summary.humanReviewAgreement).toBe(1);
+        // Soft assertions allow a full 12-case run to collect every safe summary
+        // before the test reports any semantic or stability failure.
+        expect.soft(repeated.summary.successfulRuns).toBe(repeatCount);
+        expect.soft(repeated.summary.allSyntaxPassed).toBe(true);
+        expect.soft(repeated.summary.allSemanticChecksPassed).toBe(true);
+        expect.soft(repeated.summary.privacyBoundariesHeld).toBe(true);
+        expect.soft(repeated.summary.primaryHypothesisAgreement).toBeGreaterThanOrEqual(minimumAgreement);
+        expect.soft(repeated.summary.candidateSetAgreement).toBeGreaterThanOrEqual(minimumAgreement);
+        expect.soft(repeated.summary.interventionPermissionAgreement).toBe(1);
+        expect.soft(repeated.summary.humanReviewAgreement).toBe(1);
 
         for (const run of repeated.runs) {
-          expect(run.status).toBe("passed");
+          expect.soft(run.status).toBe("passed");
           if (run.status !== "passed") continue;
-          expect(run.extraction.episodeId).toBe(testCase.id);
+          expect.soft(run.extraction.episodeId).toBe(testCase.id);
 
           if (testCase.id === "boundary-outside-taxonomy") {
-            expect(run.resolved.humanReviewRequired).toBe(true);
-            expect(run.resolved.interventionAllowed).toBe(false);
-            expect(run.resolved.selectedIntervention).toBeNull();
+            expect.soft(run.resolved.humanReviewRequired).toBe(true);
+            expect.soft(run.resolved.interventionAllowed).toBe(false);
+            expect.soft(run.resolved.selectedIntervention).toBeNull();
           }
 
           if (testCase.id === "boundary-insufficient") {
-            expect(run.resolved.interventionAllowed).toBe(false);
-            expect(run.resolved.selectedIntervention).toBeNull();
-            expect(run.resolved.additionalQuestion).not.toBeNull();
+            expect.soft(run.resolved.interventionAllowed).toBe(false);
+            expect.soft(run.resolved.selectedIntervention).toBeNull();
+            expect.soft(run.resolved.additionalQuestion).not.toBeNull();
           }
         }
       }
