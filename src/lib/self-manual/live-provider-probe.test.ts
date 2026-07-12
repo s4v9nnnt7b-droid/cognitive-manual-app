@@ -24,6 +24,15 @@ function boundedRatio(value: string | undefined, fallback: number): number {
   return Math.min(1, Math.max(0, parsed));
 }
 
+function sameCodeSet(left: string[], right: string[]): boolean {
+  const normalizedLeft = [...left].sort();
+  const normalizedRight = [...right].sort();
+  return (
+    normalizedLeft.length === normalizedRight.length &&
+    normalizedLeft.every((value, index) => value === normalizedRight[index])
+  );
+}
+
 liveDescribe("live self-manual-v3 provider probe", () => {
   it(
     "runs minimized locked cases repeatedly without memory or ManualEntry writes",
@@ -92,33 +101,61 @@ liveDescribe("live self-manual-v3 provider probe", () => {
             return {
               run: index + 1,
               status: run.status,
-              failureKind: run.terminalFailure.kind
+              failureKind: run.terminalFailure.kind,
+              semanticMismatches: ["provider_failure"]
             };
           }
 
+          const primaryCode = run.resolved.rankedHypotheses[0].code;
           const candidateCodes = run.resolved.rankedHypotheses
             .map((hypothesis) => hypothesis.code)
             .sort();
           const candidateCodeSet = new Set(candidateCodes);
+          const semanticMismatches: string[] = [];
+
+          if (!testCase.expectedPrimaryCodes.includes(primaryCode)) {
+            semanticMismatches.push("unexpected_primary_code");
+          }
+          if (!sameCodeSet(candidateCodes, testCase.expectedCandidateCodes)) {
+            semanticMismatches.push("unexpected_candidate_set");
+          }
+          if (run.resolved.interventionAllowed !== testCase.expectedInterventionAllowed) {
+            semanticMismatches.push("unexpected_intervention_permission");
+          }
+          if (run.resolved.humanReviewRequired !== testCase.expectedHumanReviewRequired) {
+            semanticMismatches.push("unexpected_human_review_state");
+          }
+          if (
+            (run.resolved.additionalQuestion !== null) !==
+            testCase.expectedAdditionalQuestionPresent
+          ) {
+            semanticMismatches.push("unexpected_additional_question_state");
+          }
 
           return {
             run: index + 1,
             status: run.status,
-            primaryCode: run.resolved.rankedHypotheses[0].code,
+            primaryCode,
             candidateCodes,
             missingExpectedCodes: testCase.expectedCodes.filter((code) => !candidateCodeSet.has(code)),
             interventionAllowed: run.resolved.interventionAllowed,
             selectedInterventionPresent: run.resolved.selectedIntervention !== null,
             humanReviewRequired: run.resolved.humanReviewRequired,
-            additionalQuestionPresent: run.resolved.additionalQuestion !== null
+            additionalQuestionPresent: run.resolved.additionalQuestion !== null,
+            semanticMismatches
           };
         });
+
+        const strictSemanticRunsPassed = runSummaries.filter(
+          (summary) => summary.status === "passed" && summary.semanticMismatches.length === 0
+        ).length;
 
         const caseSummary = {
           caseId: testCase.id,
           group: testCase.group,
           repeatCount,
           successfulRuns: repeated.summary.successfulRuns,
+          strictSemanticRunsPassed,
           allExpectedCodesPresent: repeated.summary.allExpectedCodesPresent,
           primaryHypothesisAgreement: repeated.summary.primaryHypothesisAgreement,
           candidateSetAgreement: repeated.summary.candidateSetAgreement,
@@ -153,6 +190,7 @@ liveDescribe("live self-manual-v3 provider probe", () => {
         expect.soft(repeated.summary.successfulRuns).toBe(repeatCount);
         expect.soft(repeated.summary.allSyntaxPassed).toBe(true);
         expect.soft(repeated.summary.allSemanticChecksPassed).toBe(true);
+        expect.soft(strictSemanticRunsPassed).toBe(repeatCount);
         expect.soft(repeated.summary.privacyBoundariesHeld).toBe(true);
         expect.soft(repeated.summary.primaryHypothesisAgreement).toBeGreaterThanOrEqual(minimumAgreement);
         expect.soft(repeated.summary.candidateSetAgreement).toBeGreaterThanOrEqual(minimumAgreement);
@@ -162,18 +200,24 @@ liveDescribe("live self-manual-v3 provider probe", () => {
         for (const run of repeated.runs) {
           expect.soft(run.status).toBe("passed");
           if (run.status !== "passed") continue;
+
+          const primaryCode = run.resolved.rankedHypotheses[0].code;
+          const candidateCodes = run.resolved.rankedHypotheses
+            .map((hypothesis) => hypothesis.code)
+            .sort();
+
           expect.soft(run.extraction.episodeId).toBe(testCase.id);
-
-          if (testCase.id === "boundary-outside-taxonomy") {
-            expect.soft(run.resolved.humanReviewRequired).toBe(true);
-            expect.soft(run.resolved.interventionAllowed).toBe(false);
+          expect.soft(testCase.expectedPrimaryCodes).toContain(primaryCode);
+          expect.soft(candidateCodes).toEqual([...testCase.expectedCandidateCodes].sort());
+          expect.soft(run.resolved.interventionAllowed).toBe(testCase.expectedInterventionAllowed);
+          expect.soft(run.resolved.humanReviewRequired).toBe(testCase.expectedHumanReviewRequired);
+          expect.soft(run.resolved.additionalQuestion !== null).toBe(
+            testCase.expectedAdditionalQuestionPresent
+          );
+          if (testCase.expectedInterventionAllowed) {
+            expect.soft(run.resolved.selectedIntervention).not.toBeNull();
+          } else {
             expect.soft(run.resolved.selectedIntervention).toBeNull();
-          }
-
-          if (testCase.id === "boundary-insufficient") {
-            expect.soft(run.resolved.interventionAllowed).toBe(false);
-            expect.soft(run.resolved.selectedIntervention).toBeNull();
-            expect.soft(run.resolved.additionalQuestion).not.toBeNull();
           }
         }
       }
