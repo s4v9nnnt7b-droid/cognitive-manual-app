@@ -1,20 +1,24 @@
 name: Generate package lock
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - agent/simple-diagnosis-mvp
+    paths:
+      - .github/workflows/generate-package-lock.yml
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   generate-lock:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout branch
         uses: actions/checkout@v4
+        with:
+          ref: agent/simple-diagnosis-mvp
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -24,10 +28,11 @@ jobs:
       - name: Generate package-lock.json
         run: npm install --package-lock-only --ignore-scripts
 
-      - name: Upload package lock
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-package-lock
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit package lock
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Add reproducible package lock"
+          git push origin HEAD:agent/simple-diagnosis-mvp
