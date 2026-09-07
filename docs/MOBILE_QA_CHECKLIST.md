@@ -1,22 +1,38 @@
-# Mobile QA Checklist
+# Mobile QA Checklist — v0.5 Core Complete
 
-## v0.2 mobile polish acceptance
+## Automated / build acceptance
 
-- iPhone幅で横スクロールが出ない
-- 同意チェックの文章がカード内で折り返される
-- Character OS Liteがホーム上部に表示される
-- 下部ナビからホーム、入力、認知書、ログ、設定へ移動できる
-- 入力フォームが1項目ずつ読みやすい
-- 0〜200以外の数値で警告が出る
-- 匿名サンプルを入れて結果画面へ進める
-- LocalStorage保存が動く
-- 全削除で同意、入力、ログが消える
-- スクショOCRと簡易セルフチェックは未実装候補として表示される
+- [x] TypeScript strict typecheck passes
+- [x] Next.js production build passes
+- [x] Static `/` route is generated
+- [x] No repository personal data added
+- [x] v0.4 LocalStorage state is normalized into schema v2
+- [x] Prediction is stored separately before Outcome
+- [x] MISS / NOT TESTABLE are preserved as valid states
+- [x] Model Snapshot and State-Dynamics are Derived/application data only
 
-## iPhone実機確認
+## Functional flow to verify in browser
 
-1. Safariで `https://cognitive-manual-app.vercel.app/` を開く
-2. 初回同意画面で文章がはみ出していないか見る
-3. ホームに追加して単独起動する
-4. 入力、結果、ログ、設定を1周する
-5. 崩れがあればスクショを残す
+1. Consent -> Home
+2. Add anonymous Assessment -> Model
+3. Add Natural Episode -> edit -> save -> delete
+4. Create Decision Case -> Prediction Freeze
+5. Reopen frozen Case -> add Outcome / Feedback -> Validation
+6. Open 検証 -> Calibration / Counterexample
+7. Save two Model Snapshots -> delta is shown
+8. Freeze State-Dynamics -> add Outcome -> Validation
+9. Export backup JSON -> import same JSON
+10. Reload page -> state persists
+11. Delete all -> all local state is cleared
+
+## Physical iPhone / iPad acceptance
+
+This remains an external-device check because a build server cannot reproduce the user's physical Safari/PWA environment exactly.
+
+- no horizontal overflow
+- safe-area/header/bottom-nav remain tappable
+- form keyboard does not hide critical controls
+- PWA launch works after Home Screen install
+- long Evidence / Feedback text wraps without layout break
+
+A physical-device UI defect should reopen UI acceptance only; it does not reopen the Theory/Core architecture unless it reveals data loss or a broken validation flow.
