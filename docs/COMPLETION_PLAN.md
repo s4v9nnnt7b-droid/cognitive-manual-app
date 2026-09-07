@@ -1,43 +1,66 @@
-# Completion Plan
+# Completion Plan / Core Completion Gate
 
-## 現在地
+## Current State
 
-- GitHub保存済み
-- Vercel公開済み
-- v0.2 mobile polishを反映済み
-- v0.1本線は手入力、Character OS Lite、認知書生成、LocalStorage保存
+Status: **CORE_COMPLETE_CANDIDATE / v0.5.0**
 
-## 完了までの工程
+The app core now implements the full operational loop required by the current SELF-THEORY architecture without modifying the locked Canonical Root Theory.
+
+## Core completion matrix
 
 | Phase | 内容 | 状態 |
 |---|---|---|
-| 0 | 公開基盤作成 | 完了 |
-| 1 | iPhone表示崩れ修正 | 完了 |
-| 2 | Character OS中心ホーム | 完了 |
-| 3 | 入力導線整理 | 完了 |
-| 4 | 認知書カード化 | 完了 |
-| 5 | 保存、削除、同意導線 | 完了 |
-| 6 | 実機QA | ユーザー確認待ち |
-| 7 | スクショOCR設計 | 次フェーズ |
-| 8 | 簡易セルフチェック設計 | 次フェーズ |
-| 9 | 共有プレビュー | 次フェーズ |
-| 10 | v1.0完成判定 | 未着手 |
+| 0 | Mobile/PWA public shell | COMPLETE |
+| 1 | Theory Sync / Authority separation | COMPLETE |
+| 2 | Assessment + Natural Episode Evidence | COMPLETE |
+| 3 | Structured Evidence edit/delete | COMPLETE |
+| 4 | Prediction Freeze / Decision Case | COMPLETE |
+| 5 | Outcome / Feedback / Validation | COMPLETE |
+| 6 | Calibration view | COMPLETE |
+| 7 | Counterexample ledger | COMPLETE |
+| 8 | Model Snapshot / history / diff | COMPLETE |
+| 9 | State-Dynamics derived validation module | COMPLETE |
+| 10 | Local backup export/import | COMPLETE |
+| 11 | TypeScript / production build QA | COMPLETE |
+| 12 | Public deployment verification | VERIFY_AFTER_MERGE |
+| 13 | Physical iPhone/iPad QA | EXTERNAL HUMAN CHECK |
 
-## v0.2で完了したこと
+## Core completion definition
 
-- モバイルファーストの画面構成に刷新
-- 横はみ出し防止
-- 初回同意画面を再設計
-- Character OS Liteをホーム中心へ配置
-- 下部ナビを追加
-- 入力画面、結果画面、ログ、設定を分離
-- 実データに見える初期値を削除
-- 匿名サンプルボタンを追加
-- LocalStorage保存と全削除を維持
+Core Complete means the app can:
 
-## 次の判断
+1. preserve Evidence provenance,
+2. keep Prediction separate from Outcome,
+3. freeze prospective predictions before outcomes,
+4. record MATCH / PARTIAL / MISS / NOT TESTABLE,
+5. retain counterexamples instead of deleting them,
+6. snapshot model state and compare changes,
+7. run the derived State-Dynamics prediction/feedback loop,
+8. edit/delete structured natural Evidence,
+9. export/import local state,
+10. preserve Canonical / Derived / Legacy authority boundaries.
 
-実機で問題がなければ、次は次のどちらかへ進む。
+## Not required for Core Complete
 
-1. 見た目の完成度を上げる
-2. スクショOCRの設計へ進む
+These are Input/Distribution extensions, not missing Core logic:
+
+- OCR / screenshot ingestion
+- self-check ingestion
+- AI conversation/log ingestion
+- cloud sync / account system
+- payment
+- native App Store packaging
+- advanced Character OS / 3D
+
+## Theory boundary
+
+- Canonical Root Theory / S01 locked authority: unchanged.
+- State-Dynamics: DERIVED / WORKING module only.
+- Calibration score: operational metric, not proof of theory truth.
+- NOT TESTABLE is a valid outcome.
+- MISS and counterexamples are retained.
+
+## Release judgment
+
+After production build + public deployment verification, v0.5 may be marked **CORE_COMPLETE**.
+Physical iPhone/iPad QA remains an external acceptance check and does not reopen the Core architecture unless it reveals a functional defect.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
   analyze,
   defaultScores,
@@ -11,11 +11,14 @@ import {
   type Scores
 } from "@/src/lib/cognitive";
 import { DecisionLoopPanel } from "@/src/components/DecisionLoopPanel";
+import { EvidenceManager } from "@/src/components/EvidenceManager";
+import { ModelOpsPanel } from "@/src/components/ModelOpsPanel";
 import {
   APP_MODEL_VERSION,
   THEORY_SPEC_VERSION,
   emptyTheorySyncState,
   makeLegacyHypothesis,
+  normalizeTheoryState,
   theorySyncCoverage,
   upsertAssessmentEvidence,
   type EvidenceDomain,
@@ -26,7 +29,7 @@ import {
 const LEGACY_STORAGE_KEY = "cognitive-manual-v02-mobile";
 const STORAGE_KEY = "cognitive-manual-v03-theory-sync";
 
-type View = "home" | "profile" | "input" | "results" | "decision" | "log" | "settings";
+type View = "home" | "profile" | "input" | "results" | "decision" | "modelops" | "log" | "settings";
 
 const scoreFields: Array<{ key: ScoreKey; label: string; note: string }> = [
   { key: "fiq", label: "FIQ", note: "全体" },
@@ -64,7 +67,7 @@ const navItems: Array<{ view: View; label: string; icon: string }> = [
   { view: "input", label: "入力", icon: "＋" },
   { view: "decision", label: "判断", icon: "◎" },
   { view: "log", label: "Evidence", icon: "線" },
-  { view: "settings", label: "設定", icon: "⚙" }
+  { view: "modelops", label: "検証", icon: "◫" }
 ];
 
 export default function Page() {
@@ -101,7 +104,7 @@ export default function Page() {
       const data = JSON.parse(raw);
       const loadedScores: Scores = data.scores || defaultScores;
       const loadedAnalysis = analyze(loadedScores);
-      let loadedTheory: TheorySyncState = data.theoryState || emptyTheorySyncState;
+      let loadedTheory: TheorySyncState = normalizeTheoryState(data.theoryState || emptyTheorySyncState);
       loadedTheory = syncTheoryFromLegacyOutputs(loadedTheory, loadedScores, loadedAnalysis);
 
       setAgreed(Boolean(data.agreed));
@@ -199,6 +202,45 @@ export default function Page() {
     persist("自然エピソードをEvidenceとして保存しました。", { theoryOverride: nextTheory });
   }
 
+  function exportBackup() {
+    const syncedTheory = syncTheoryFromLegacyOutputs(theoryState, scores, analysis);
+    const payload = buildPayload(syncedTheory, view);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `self-manual-v05-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setSavedMessage("バックアップJSONを書き出しました。");
+  }
+
+  async function importBackup(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const loadedScores: Scores = data.scores || defaultScores;
+      const loadedAnalysis = analyze(loadedScores);
+      const loadedTheory = syncTheoryFromLegacyOutputs(normalizeTheoryState(data.theoryState), loadedScores, loadedAnalysis);
+      setAgreed(true);
+      setConsentChecked(true);
+      setNickname(data.nickname || "ゲスト");
+      setPurpose(data.purpose || "自分の傾向と条件を理解し、日常の判断・行動に活かしたい");
+      setHasAssessment(data.hasAssessment || "unknown");
+      setScores(loadedScores);
+      setTimeline(data.timeline || "");
+      setTheoryState(loadedTheory);
+      setView("home");
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, agreed: true, scores: loadedScores, theoryState: loadedTheory, view: "home" }));
+      setSavedMessage("バックアップJSONを読み込みました。");
+    } catch {
+      setSavedMessage("バックアップJSONを読み込めませんでした。");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
   function clearAll() {
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(LEGACY_STORAGE_KEY);
@@ -245,7 +287,7 @@ export default function Page() {
           <button type="button" className="primary-button full" disabled={!consentChecked} onClick={startApp}>
             自分のモデルを開く
           </button>
-          <p className="micro-copy">v0.4 Decision Loop。PredictionをOutcome前にFreezeして検証します。</p>
+          <p className="micro-copy">v0.5 Core Complete。Evidence・Prediction・Calibration・Model History・State-Dynamicsを一体運用します。</p>
         </section>
       </main>
     );
@@ -292,8 +334,9 @@ export default function Page() {
             <button type="button" onClick={() => setView("log")}><span>自然Episode</span><small>出来事・条件</small></button>
             <button type="button" onClick={() => setView("decision")}><span>Decision Case</span><small>Prediction Freeze</small></button>
             <button type="button" onClick={() => setView("results")}><span>現在モデル</span><small>暫定仮説</small></button>
+            <button type="button" onClick={() => setView("modelops")}><span>検証・履歴</span><small>Calibration</small></button>
             <button type="button" onClick={() => setView("results")}><span>対人説明</span><small>共有前確認</small></button>
-            <button type="button" onClick={() => setView("settings")}><span>Theory</span><small>{THEORY_SPEC_VERSION}</small></button>
+            <button type="button" onClick={() => setView("settings")}><span>Theory / 設定</span><small>{THEORY_SPEC_VERSION}</small></button>
           </section>
 
           <section className="phase-card">
@@ -382,13 +425,15 @@ export default function Page() {
 
           <article className="panel-card warning-card">
             <h3>Theory Sync Status</h3>
-            <p>現在の表示は、旧v0.2ルールベース出力を「暫定仮説」として包み直した移行段階です。</p>
+            <p>旧v0.2ルールベース出力はLegacy仮説として保持し、現在はEvidence・Prediction・Validation・Snapshot・Counterexampleを分離して運用します。</p>
             <div className="settings-list">
               <div><b>Theory</b><span>{THEORY_SPEC_VERSION}</span></div>
               <div><b>App model</b><span>{APP_MODEL_VERSION}</span></div>
               <div><b>Evidence</b><span>{coverage.totalEvidence}件</span></div>
               <div><b>Natural Episode</b><span>{coverage.naturalEpisodeCount}件</span></div>
               <div><b>Feedback loop</b><span>{coverage.hasFeedbackLoop ? "あり" : "未形成"}</span></div>
+              <div><b>Model snapshots</b><span>{coverage.modelSnapshots}件</span></div>
+              <div><b>State-Dynamics</b><span>{coverage.stateDynamicsCases}件</span></div>
             </div>
           </article>
 
@@ -411,6 +456,17 @@ export default function Page() {
           onChange={(next, message) => {
             setTheoryState(next);
             persist(message, { theoryOverride: next, viewOverride: "decision" });
+          }}
+        />
+      ) : null}
+
+      {view === "modelops" ? (
+        <ModelOpsPanel
+          state={theoryState}
+          domainOptions={domainOptions}
+          onChange={(next, message) => {
+            setTheoryState(next);
+            persist(message, { theoryOverride: next, viewOverride: "modelops" });
           }}
         />
       ) : null}
@@ -442,17 +498,16 @@ export default function Page() {
 
           <article className="panel-card">
             <h2>保存済みEvidence</h2>
-            {theoryState.evidence.length ? (
-              <div className="phase-list">
-                {theoryState.evidence.slice(0, 8).map((item) => (
-                  <button type="button" key={item.id} disabled>
-                    <b>{domainOptions.find((option) => option.value === item.domain)?.label || item.domain} / {item.source}</b>
-                    <span>{item.summary}</span>
-                  </button>
-                ))}
-              </div>
-            ) : <p>まだEvidenceはありません。</p>}
+            <p>自然Episodeは個別編集・削除できます。Assessmentは入力画面から更新します。</p>
           </article>
+          <EvidenceManager
+            state={theoryState}
+            domainLabel={(value) => domainOptions.find((option) => option.value === value)?.label || value}
+            onChange={(next, message) => {
+              setTheoryState(next);
+              persist(message, { theoryOverride: next, viewOverride: "log" });
+            }}
+          />
 
           <article className="panel-card">
             <h2>旧形式メモ</h2>
@@ -468,16 +523,21 @@ export default function Page() {
           <article className="panel-card">
             <h2>設定・Theory・データ管理</h2>
             <div className="settings-list">
-              <div><b>保存方式</b><span>LocalStorage v0.4</span></div>
+              <div><b>保存方式</b><span>LocalStorage schema v2 / app v0.5</span></div>
               <div><b>Theory Spec</b><span>{THEORY_SPEC_VERSION}</span></div>
               <div><b>App model</b><span>{APP_MODEL_VERSION}</span></div>
               <div><b>Authority</b><span>Canonical / Derived / Legacy 分離</span></div>
               <div><b>OCR</b><span>Evidence Adapterとして後段</span></div>
               <div><b>セルフチェック</b><span>Self-report Adapterとして後段</span></div>
               <div><b>Decision Loop</b><span>Prediction Freeze / Outcome / Validation</span></div>
-              <div><b>AI API</b><span>v0.4では未使用</span></div>
+              <div><b>Calibration</b><span>MATCH / PARTIAL / MISS / NOT TESTABLE</span></div>
+              <div><b>Model History</b><span>Snapshot対応</span></div>
+              <div><b>State-Dynamics</b><span>Derived / Freeze + Validation</span></div>
+              <div><b>AI API</b><span>Coreでは未使用。Adapter層で追加可能</span></div>
             </div>
             <button type="button" className="primary-button" onClick={() => persist("保存しました。")}>現在の内容を保存</button>
+            <button type="button" className="secondary-button" onClick={exportBackup}>バックアップJSONを書き出す</button>
+            <label>バックアップJSONを読み込む<input type="file" accept="application/json,.json" onChange={importBackup} /></label>
             <button type="button" className="danger-button" onClick={clearAll}>同意・入力・Evidence・保存データを全削除</button>
             {savedMessage ? <p className="save-message">{savedMessage}</p> : null}
           </article>
