@@ -10,6 +10,7 @@ import {
   type ScoreKey,
   type Scores
 } from "@/src/lib/cognitive";
+import { DecisionLoopPanel } from "@/src/components/DecisionLoopPanel";
 import {
   APP_MODEL_VERSION,
   THEORY_SPEC_VERSION,
@@ -25,7 +26,7 @@ import {
 const LEGACY_STORAGE_KEY = "cognitive-manual-v02-mobile";
 const STORAGE_KEY = "cognitive-manual-v03-theory-sync";
 
-type View = "home" | "profile" | "input" | "results" | "log" | "settings";
+type View = "home" | "profile" | "input" | "results" | "decision" | "log" | "settings";
 
 const scoreFields: Array<{ key: ScoreKey; label: string; note: string }> = [
   { key: "fiq", label: "FIQ", note: "全体" },
@@ -61,7 +62,7 @@ const expressionFace = {
 const navItems: Array<{ view: View; label: string; icon: string }> = [
   { view: "home", label: "ホーム", icon: "⌂" },
   { view: "input", label: "入力", icon: "＋" },
-  { view: "results", label: "モデル", icon: "文" },
+  { view: "decision", label: "判断", icon: "◎" },
   { view: "log", label: "Evidence", icon: "線" },
   { view: "settings", label: "設定", icon: "⚙" }
 ];
@@ -244,7 +245,7 @@ export default function Page() {
           <button type="button" className="primary-button full" disabled={!consentChecked} onClick={startApp}>
             自分のモデルを開く
           </button>
-          <p className="micro-copy">Theory Sync v0.3 foundation。既存v0.2データは移行して利用できます。</p>
+          <p className="micro-copy">v0.4 Decision Loop。PredictionをOutcome前にFreezeして検証します。</p>
         </section>
       </main>
     );
@@ -257,7 +258,7 @@ export default function Page() {
           認
         </button>
         <div>
-          <p className="eyebrow">Theory Sync Foundation</p>
+          <p className="eyebrow">Evidence → Prediction → Feedback</p>
           <h1>{view === "home" ? "自分取扱説明書" : navItems.find((item) => item.view === view)?.label}</h1>
         </div>
         <button type="button" className="ghost-button" onClick={() => persist("保存しました。")}>保存</button>
@@ -289,8 +290,8 @@ export default function Page() {
           <section className="menu-grid" aria-label="主要メニュー">
             <button type="button" onClick={() => setView("input")}><span>Evidence入力</span><small>心理検査</small></button>
             <button type="button" onClick={() => setView("log")}><span>自然Episode</span><small>出来事・条件</small></button>
+            <button type="button" onClick={() => setView("decision")}><span>Decision Case</span><small>Prediction Freeze</small></button>
             <button type="button" onClick={() => setView("results")}><span>現在モデル</span><small>暫定仮説</small></button>
-            <button type="button" onClick={() => setView("results")}><span>自分取説</span><small>条件付き</small></button>
             <button type="button" onClick={() => setView("results")}><span>対人説明</span><small>共有前確認</small></button>
             <button type="button" onClick={() => setView("settings")}><span>Theory</span><small>{THEORY_SPEC_VERSION}</small></button>
           </section>
@@ -403,6 +404,17 @@ export default function Page() {
         </section>
       ) : null}
 
+      {view === "decision" ? (
+        <DecisionLoopPanel
+          state={theoryState}
+          domainOptions={domainOptions}
+          onChange={(next, message) => {
+            setTheoryState(next);
+            persist(message, { theoryOverride: next, viewOverride: "decision" });
+          }}
+        />
+      ) : null}
+
       {view === "log" ? (
         <section className="screen-stack">
           <article className="panel-card">
@@ -456,13 +468,14 @@ export default function Page() {
           <article className="panel-card">
             <h2>設定・Theory・データ管理</h2>
             <div className="settings-list">
-              <div><b>保存方式</b><span>LocalStorage v0.3</span></div>
+              <div><b>保存方式</b><span>LocalStorage v0.4</span></div>
               <div><b>Theory Spec</b><span>{THEORY_SPEC_VERSION}</span></div>
               <div><b>App model</b><span>{APP_MODEL_VERSION}</span></div>
               <div><b>Authority</b><span>Canonical / Derived / Legacy 分離</span></div>
               <div><b>OCR</b><span>Evidence Adapterとして後段</span></div>
               <div><b>セルフチェック</b><span>Self-report Adapterとして後段</span></div>
-              <div><b>AI API</b><span>Foundationでは未使用</span></div>
+              <div><b>Decision Loop</b><span>Prediction Freeze / Outcome / Validation</span></div>
+              <div><b>AI API</b><span>v0.4では未使用</span></div>
             </div>
             <button type="button" className="primary-button" onClick={() => persist("保存しました。")}>現在の内容を保存</button>
             <button type="button" className="danger-button" onClick={clearAll}>同意・入力・Evidence・保存データを全削除</button>

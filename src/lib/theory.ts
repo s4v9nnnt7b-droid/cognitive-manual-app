@@ -1,7 +1,7 @@
 import type { Scores } from "@/src/lib/cognitive";
 
 export const THEORY_SPEC_VERSION = "SELF-THEORY-v0.1";
-export const APP_MODEL_VERSION = "cognitive-manual-theory-sync-v0.3-foundation";
+export const APP_MODEL_VERSION = "cognitive-manual-v0.4-decision-loop";
 
 export const canonicalEquations = {
   E1: "y^(d) = psi_d(T_theta(phi_d(x^(d))))",
@@ -66,15 +66,19 @@ export type DecisionCase = {
   id: string;
   domain: EvidenceDomain;
   createdAt: string;
+  predictionFrozenAt?: string;
   evidenceIds: string[];
   goal?: string;
   constraints?: string[];
   prediction?: string;
+  falsificationConditions?: string[];
   uncertainty?: ConfidenceBand;
   utilityNote?: string;
   decision?: string;
   outcome?: string;
+  outcomeObservedAt?: string;
   feedback?: string;
+  validatedAt?: string;
   validation: ValidationStatus;
 };
 
@@ -186,8 +190,10 @@ export function theorySyncCoverage(state: TheorySyncState) {
     phase:
       naturalEpisodeCount === 0
         ? "Evidence collection"
-        : completedCases === 0
+        : state.decisionCases.length === 0
           ? "Model formation"
-          : "Feedback calibration"
+          : completedCases === 0
+            ? "Prospective observation"
+            : "Feedback calibration"
   };
 }
