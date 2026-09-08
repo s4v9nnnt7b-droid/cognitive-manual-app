@@ -11,6 +11,7 @@ import {
   type Scores
 } from "@/src/lib/cognitive";
 import { AlgorithmKernelPanel } from "@/src/components/AlgorithmKernelPanel";
+import type { KernelDecisionSeed } from "@/src/lib/algorithm-kernel";
 import { DecisionLoopPanel } from "@/src/components/DecisionLoopPanel";
 import { EvidenceManager } from "@/src/components/EvidenceManager";
 import { ModelOpsPanel } from "@/src/components/ModelOpsPanel";
@@ -93,6 +94,7 @@ export default function Page() {
   const [scores, setScores] = useState<Scores>(defaultScores);
   const [timeline, setTimeline] = useState("旧形式メモはまだありません。");
   const [theoryState, setTheoryState] = useState<TheorySyncState>(emptyTheorySyncState);
+  const [kernelDecisionSeed, setKernelDecisionSeed] = useState<KernelDecisionSeed | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
 
   const [episodeDomain, setEpisodeDomain] = useState<EvidenceDomain>("general");
@@ -300,7 +302,7 @@ export default function Page() {
           <button type="button" className="primary-button full" disabled={!consentChecked} onClick={startApp}>
             自分のモデルを開く
           </button>
-          <p className="micro-copy">v0.6 Algorithm Kernel Bridge。v0.5 Coreを維持したまま、Theory→Domain Algorithmの派生レイヤーを追加します。</p>
+          <p className="micro-copy">v0.6.1 Self Manual Pilot Bridge。条件付きHypothesisとEvidence cutoffをKernel→Prediction Freezeへ接続します。</p>
         </section>
       </main>
     );
@@ -467,7 +469,10 @@ export default function Page() {
         <AlgorithmKernelPanel
           state={theoryState}
           domainOptions={domainOptions}
-          onMoveToDecision={() => setView("decision")}
+          onMoveToDecision={(seed) => {
+            setKernelDecisionSeed(seed);
+            setView("decision");
+          }}
         />
       ) : null}
 
@@ -475,6 +480,8 @@ export default function Page() {
         <DecisionLoopPanel
           state={theoryState}
           domainOptions={domainOptions}
+          seed={kernelDecisionSeed}
+          onSeedConsumed={() => setKernelDecisionSeed(null)}
           onChange={(next, message) => {
             setTheoryState(next);
             persist(message, { theoryOverride: next, viewOverride: "decision" });
@@ -555,7 +562,7 @@ export default function Page() {
               <div><b>Calibration</b><span>MATCH / PARTIAL / MISS / NOT TESTABLE</span></div>
               <div><b>Model History</b><span>Snapshot対応</span></div>
               <div><b>State-Dynamics</b><span>Derived / Freeze + Validation</span></div>
-              <div><b>Algorithm Kernel</b><span>Derived / Fail-Closed / Domain Bridge</span></div>
+              <div><b>Algorithm Kernel</b><span>Derived / Self Manual Signals / Evidence-cutoff Handoff</span></div>
               <div><b>AI API</b><span>Coreでは未使用。Adapter層で追加可能</span></div>
             </div>
             <button type="button" className="primary-button" onClick={() => persist("保存しました。")}>現在の内容を保存</button>

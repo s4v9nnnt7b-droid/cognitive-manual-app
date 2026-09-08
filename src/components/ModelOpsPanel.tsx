@@ -40,6 +40,10 @@ export function ModelOpsPanel({ state, domainOptions, onChange }: Props) {
   const [validationDrafts, setValidationDrafts] = useState<Record<string, ValidationStatus>>({});
 
   const misses = state.decisionCases.filter((item) => item.validation === "miss");
+  const kernelCases = state.decisionCases.filter((item) => item.derivedFrom?.kind === "algorithm-kernel");
+  const kernelCompleted = kernelCases.filter((item) => item.validation !== "pending");
+  const kernelAssessable = kernelCases.filter((item) => ["match", "partial", "miss"].includes(item.validation));
+  const kernelMisses = kernelCases.filter((item) => item.validation === "miss");
 
   function saveSnapshot() {
     const snapshot = createModelSnapshot(state, snapshotReason.trim() || "定点保存");
@@ -91,6 +95,9 @@ export function ModelOpsPanel({ state, domainOptions, onChange }: Props) {
           <div><b>PARTIAL</b><span>{calibration.counts.partial}</span></div>
           <div><b>MISS</b><span>{calibration.counts.miss}</span></div>
           <div><b>NOT TESTABLE</b><span>{calibration.counts["not-testable"]}</span></div>
+          <div><b>Kernel-linked Cases</b><span>{kernelCompleted.length}/{kernelCases.length} completed</span></div>
+          <div><b>Kernel assessable</b><span>{kernelAssessable.length}</span></div>
+          <div><b>Kernel MISS</b><span>{kernelMisses.length}</span></div>
           <div><b>Calibration score</b><span>{calibration.calibrationScore === null ? "未計算" : `${Math.round(calibration.calibrationScore * 100)}%`}</span></div>
         </div>
         <p className="hint-text">スコアは MATCH=1 / PARTIAL=0.5 / MISS=0 の簡易運用指標。Theoryの真偽そのものではありません。</p>
@@ -98,7 +105,7 @@ export function ModelOpsPanel({ state, domainOptions, onChange }: Props) {
 
       <article className="panel-card">
         <div className="section-head"><div><p className="eyebrow">Counterexample Ledger</p><h2>外れを消さない</h2></div><span className="status-chip">{misses.length} MISS</span></div>
-        {misses.length ? <div className="phase-list">{misses.map((item) => <button type="button" disabled key={item.id}><b>{item.domain} / {item.goal || "Decision Case"}</b><span>予測: {item.prediction || "-"}｜結果: {item.outcome || "-"}｜Feedback: {item.feedback || "-"}</span></button>)}</div> : <p>現在、確定済みMISSはありません。</p>}
+        {misses.length ? <div className="phase-list">{misses.map((item) => <button type="button" disabled key={item.id}><b>{item.domain} / {item.goal || "Decision Case"}</b><span>Source: {item.derivedFrom ? item.derivedFrom.version : "manual"}｜予測: {item.prediction || "-"}｜結果: {item.outcome || "-"}｜Feedback: {item.feedback || "-"}</span></button>)}</div> : <p>現在、確定済みMISSはありません。</p>}
       </article>
 
       <article className="panel-card">

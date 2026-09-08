@@ -454,6 +454,41 @@ label {
   color: var(--muted);
 }
 
+.kernel-list b,
+.kernel-list span,
+.kernel-list small {
+  display: block;
+}
+
+.kernel-list b {
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+
+.kernel-list small {
+  margin-top: 4px;
+}
+
+.kernel-handoff {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(111, 92, 255, 0.22);
+  border-radius: 18px;
+  background: var(--accent-soft);
+}
+
+.kernel-handoff b,
+.kernel-handoff span,
+.kernel-handoff small {
+  display: block;
+}
+
+.kernel-handoff span,
+.kernel-handoff small {
+  color: var(--muted);
+}
+
 .panel-card {
   display: grid;
   gap: 14px;

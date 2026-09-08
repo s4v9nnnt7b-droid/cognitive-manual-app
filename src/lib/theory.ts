@@ -1,7 +1,7 @@
 import type { Scores } from "@/src/lib/cognitive";
 
 export const THEORY_SPEC_VERSION = "SELF-THEORY-v0.1";
-export const APP_MODEL_VERSION = "cognitive-manual-v0.6-algorithm-kernel-bridge";
+export const APP_MODEL_VERSION = "cognitive-manual-v0.6.1-self-manual-pilot-bridge";
 
 export const canonicalEquations = {
   E1: "y^(d) = psi_d(T_theta(phi_d(x^(d))))",
@@ -63,6 +63,11 @@ export type DecisionCase = {
   uncertainty?: ConfidenceBand;
   utilityNote?: string;
   decision?: string;
+  derivedFrom?: {
+    kind: "algorithm-kernel";
+    id: string;
+    version: string;
+  };
   outcome?: string;
   outcomeObservedAt?: string;
   feedback?: string;
