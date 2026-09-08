@@ -1,8 +1,10 @@
-# 自分取扱説明書 v0.5 Core Complete
+# 自分取扱説明書 v0.6 Algorithm Kernel Bridge
 
 公開URL：`https://cognitive-manual-app.vercel.app/`
 
 「固定タイプを当てるアプリ」ではなく、Evidence・Prediction・Decision・Outcome・Feedback・Model Updateを分離して、自分についての条件付きモデルを育てるMobile Web / PWAです。
+
+v0.6では、v0.5 Coreを再オープンせず、その上にDERIVEDな **Root-to-Algorithm Kernel Bridge** を追加しました。Root Theoryの共通処理骨格を、Domain固有のDecision Architectureへ変換するためのFail-Closedな入口です。
 
 ## Core pipeline
 
@@ -18,13 +20,34 @@ Evidence
   -> Model Snapshot / Calibration
 ```
 
+## v0.6 Algorithm Kernel Bridge
+
+```text
+Domain + Goal + Constraints + Evidence
+  -> Readiness Check
+  -> Representation phi_d
+  -> Prediction P_d
+  -> Utility U_d
+  -> Decision delta_d
+  -> Validation V_d
+```
+
+Readinessは3段階です。
+
+- `OBSERVE_MORE`：GoalまたはEvidence不足。式を無理に作らない
+- `QUALITATIVE_MODEL`：条件付きの質的モデルとして整理する
+- `LOW_RISK_PILOT`：低リスクPilotへ進める。既存Decision CaseでPredictionをFreezeする
+
+Kernelは自動実行権限を持ちません。Evidenceから支持できない確率・重み・精密値を捏造せず、High-stakes / irreversible decisionへ自動昇格しません。
+
 ## Authority boundary
 
 - Canonical Root Theory / S01 locked validation authorityをアプリ都合で変更しない
 - Canonical / Derived / Legacyを分離
-- State-DynamicsはDerived module
+- Algorithm Kernel / State-DynamicsはDerived layer
 - アプリの便利さをTheoryのTruth証明に使わない
 - NOT TESTABLE / MISS / Counterexampleを正規データとして保持
+- v0.5 LocalStorage schema v2を維持し、Kernelは上位Extensionとして接続
 
 ## v0.5 Core Complete features
 
@@ -42,9 +65,6 @@ Evidence
 - Counterexample ledger
 - Model Snapshot / history / delta view
 - State-Dynamics derived module
-  - Act / Rest / Wait / Environment change
-  - A-hat / R-hat / D-hat / C-hat
-  - prediction freeze -> outcome -> validation
 - LocalStorage schema v2 with older-state normalization
 - backup JSON export/import
 - full local reset
@@ -52,11 +72,21 @@ Evidence
 
 ## Canonical equations referenced
 
-E1〜E6 are stored as semantic references, not silently redefined by the app. The app operationalizes the validation loop but does not claim that the equations are empirically established.
+E1〜E6 are stored as semantic references, not silently redefined by the app. The app operationalizes the validation loop and Root-to-Domain bridge but does not claim that the equations are empirically established.
 
-## Extensions after Core Complete
+## Extensions after v0.6 Bridge
 
-OCR / screenshot, self-check, AI logs, cloud sync and native packaging are Input/Distribution extensions. They attach to the Evidence layer and are not blockers for Core completion.
+次の優先線は、Kernelを少数の低リスクDomainで実運用し、同じ上位骨格を変更せず再利用できるかを見ることです。
+
+優先候補：
+
+1. Study / daily task allocation
+2. Y's improvement adoption
+3. tool / service choice
+4. delegation
+5. その後にcareer / housing / relationship等の高stakes領域
+
+OCR / screenshot, self-check, AI logs, cloud sync and native packagingはInput / Distribution extensionsとして別線で追加できます。
 
 ## Verification
 
@@ -64,7 +94,16 @@ OCR / screenshot, self-check, AI logs, cloud sync and native packaging are Input
 npm install
 npm run typecheck
 npm run build
+git diff --check
 ```
+
+v0.6 merge時の確認：
+
+- `npm run typecheck` PASS
+- `npm run build` PASS
+- local production HTTP smoke PASS
+- production URL HTTP 200
+- production HTMLで `v0.6 Algorithm Kernel Bridge` を確認
 
 Pinned verification environment:
 
@@ -81,4 +120,5 @@ The repository contains no real name, medical record, or actual personal psychol
 - `docs/THEORY_SYNC_GAP.md`
 - `docs/COMPLETION_PLAN.md`
 - `docs/MOBILE_QA_CHECKLIST.md`
+- `docs/ALGORITHM_KERNEL_V06.md`
 - `DECISION_AUDIT.md`
