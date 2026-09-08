@@ -302,7 +302,7 @@ export default function Page() {
           <button type="button" className="primary-button full" disabled={!consentChecked} onClick={startApp}>
             自分のモデルを開く
           </button>
-          <p className="micro-copy">v0.6.1 Self Manual Pilot Bridge。条件付きHypothesisとEvidence cutoffをKernel→Prediction Freezeへ接続します。</p>
+          <p className="micro-copy">v0.6.2 Error Attribution & Pilot Metrics。判断プロセスとPrediction Errorの原因候補を、Outcome後に分離して検証します。</p>
         </section>
       </main>
     );
@@ -563,6 +563,7 @@ export default function Page() {
               <div><b>Model History</b><span>Snapshot対応</span></div>
               <div><b>State-Dynamics</b><span>Derived / Freeze + Validation</span></div>
               <div><b>Algorithm Kernel</b><span>Derived / Self Manual Signals / Evidence-cutoff Handoff</span></div>
+              <div><b>Pilot Metrics</b><span>Derived / Decision Cost / Regret / Error Attribution</span></div>
               <div><b>AI API</b><span>Coreでは未使用。Adapter層で追加可能</span></div>
             </div>
             <button type="button" className="primary-button" onClick={() => persist("保存しました。")}>現在の内容を保存</button>

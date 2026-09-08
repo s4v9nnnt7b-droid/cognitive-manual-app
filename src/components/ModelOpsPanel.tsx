@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   calibrationSummary,
   createModelSnapshot,
+  pilotMetricsSummary,
   type Direction,
   type EvidenceDomain,
   type StateDynamicsAction,
@@ -25,6 +26,7 @@ const validations: ValidationStatus[] = ["match", "partial", "miss", "not-testab
 
 export function ModelOpsPanel({ state, domainOptions, onChange }: Props) {
   const calibration = useMemo(() => calibrationSummary(state), [state]);
+  const pilot = useMemo(() => pilotMetricsSummary(state), [state]);
   const [snapshotReason, setSnapshotReason] = useState("定点保存");
   const [domain, setDomain] = useState<EvidenceDomain>("general");
   const [action, setAction] = useState<StateDynamicsAction>("act");
@@ -104,6 +106,32 @@ export function ModelOpsPanel({ state, domainOptions, onChange }: Props) {
       </article>
 
       <article className="panel-card">
+        <div className="section-head"><div><p className="eyebrow">Pilot Metrics / Derived</p><h2>判断プロセスの有用性</h2></div><span className="status-chip">Batch 1 {pilot.batch1Completed}/{pilot.batch1Target}</span></div>
+        <p>Prediction accuracyだけでなく、判断時間・認知負荷・後悔・やり直しを分離して観測します。1〜5は本人内比較用の運用指標で、TheoryのTruth scoreではありません。</p>
+        <div className="settings-list">
+          <div><b>Completed</b><span>{pilot.completed}</span></div>
+          <div><b>Kernel completed</b><span>{pilot.kernelCompleted}</span></div>
+          <div><b>Method / Kernel</b><span>{pilot.methodCounts["kernel-assisted"]}</span></div>
+          <div><b>Method / Intuitive</b><span>{pilot.methodCounts.intuitive}</span></div>
+          <div><b>Method / Pros-Cons</b><span>{pilot.methodCounts["pros-cons"]}</span></div>
+          <div><b>Avg Decision Time</b><span>{formatAverage(pilot.averages.decisionTimeMinutes, "分")}</span></div>
+          <div><b>Avg Cognitive Load</b><span>{formatAverage(pilot.averages.cognitiveLoad)}</span></div>
+          <div><b>Avg Information Cost</b><span>{formatAverage(pilot.averages.informationCost)}</span></div>
+          <div><b>Avg Outcome Regret</b><span>{formatAverage(pilot.averages.outcomeRegret)}</span></div>
+          <div><b>Avg Process Regret</b><span>{formatAverage(pilot.averages.processRegret)}</span></div>
+          <div><b>Avg Process Quality</b><span>{formatAverage(pilot.averages.processQuality)}</span></div>
+        </div>
+        <div className="kernel-list">
+          {Object.entries(pilot.errorCounts).filter(([, count]) => count > 0).length ? (
+            Object.entries(pilot.errorCounts).filter(([, count]) => count > 0).map(([category, count]) => (
+              <div key={category}><b>{category}</b><span>{count}件</span></div>
+            ))
+          ) : <div>Error Attributionはまだありません。</div>}
+        </div>
+        <p className="hint-text">最初の5 Kernel-linked completed Caseは配管テスト。傾向比較は件数とDomain分布を見てから行います。</p>
+      </article>
+
+      <article className="panel-card">
         <div className="section-head"><div><p className="eyebrow">Counterexample Ledger</p><h2>外れを消さない</h2></div><span className="status-chip">{misses.length} MISS</span></div>
         {misses.length ? <div className="phase-list">{misses.map((item) => <button type="button" disabled key={item.id}><b>{item.domain} / {item.goal || "Decision Case"}</b><span>Source: {item.derivedFrom ? item.derivedFrom.version : "manual"}｜予測: {item.prediction || "-"}｜結果: {item.outcome || "-"}｜Feedback: {item.feedback || "-"}</span></button>)}</div> : <p>現在、確定済みMISSはありません。</p>}
       </article>
@@ -148,4 +176,9 @@ export function ModelOpsPanel({ state, domainOptions, onChange }: Props) {
 
 function Level({ label, value, onChange }: { label: string; value: StateDynamicsLevel; onChange: (value: StateDynamicsLevel) => void }) {
   return <label>{label}<select value={value} onChange={(e) => onChange(e.target.value as StateDynamicsLevel)}>{levels.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>;
+}
+
+function formatAverage(value: number | null, suffix = " / 5") {
+  if (value === null) return "未計算";
+  return `${Math.round(value * 10) / 10}${suffix}`;
 }

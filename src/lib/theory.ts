@@ -1,7 +1,7 @@
 import type { Scores } from "@/src/lib/cognitive";
 
 export const THEORY_SPEC_VERSION = "SELF-THEORY-v0.1";
-export const APP_MODEL_VERSION = "cognitive-manual-v0.6.1-self-manual-pilot-bridge";
+export const APP_MODEL_VERSION = "cognitive-manual-v0.6.2-error-attribution-pilot-metrics";
 
 export const canonicalEquations = {
   E1: "y^(d) = psi_d(T_theta(phi_d(x^(d))))",
@@ -21,6 +21,38 @@ export type EvidenceDomain = "general" | "study" | "work" | "relationship" | "he
 export type Direction = "improve" | "same" | "worsen" | "unclear";
 export type StateDynamicsLevel = "low" | "mid" | "high" | "unknown";
 export type StateDynamicsAction = "act" | "rest" | "wait" | "change-environment";
+export type DecisionMethod = "kernel-assisted" | "intuitive" | "pros-cons" | "other";
+export type ErrorAttributionCategory =
+  | "representation"
+  | "common-engine"
+  | "prediction"
+  | "utility"
+  | "decision-policy"
+  | "environment"
+  | "insufficient-evidence"
+  | "mixed"
+  | "unknown";
+
+export type DecisionProcessMetrics = {
+  method: DecisionMethod;
+  decisionTimeMinutes?: number;
+  cognitiveLoad?: number;
+  informationCost?: number;
+};
+
+export type OutcomeProcessMetrics = {
+  outcomeRegret?: number;
+  processRegret?: number;
+  processQuality?: number;
+  reversalNeeded?: boolean;
+};
+
+export type ErrorAttribution = {
+  categories: ErrorAttributionCategory[];
+  note?: string;
+  confidence?: ConfidenceBand;
+  attributedAt: string;
+};
 
 export type EvidenceItem = {
   id: string;
@@ -67,6 +99,11 @@ export type DecisionCase = {
     kind: "algorithm-kernel";
     id: string;
     version: string;
+  };
+  pilot?: {
+    pre?: DecisionProcessMetrics;
+    post?: OutcomeProcessMetrics;
+    errorAttribution?: ErrorAttribution;
   };
   outcome?: string;
   outcomeObservedAt?: string;
@@ -200,6 +237,58 @@ export function calibrationSummary(state: TheorySyncState) {
   const calibrationScore = assessable ? (counts.match + counts.partial * 0.5) / assessable : null;
   const missRate = assessable ? counts.miss / assessable : null;
   return { counts, assessable, calibrationScore, missRate };
+}
+
+export function pilotMetricsSummary(state: TheorySyncState) {
+  const completed = state.decisionCases.filter((item) => item.validation !== "pending");
+  const kernelCompleted = completed.filter((item) => item.derivedFrom?.kind === "algorithm-kernel");
+  const methodCounts: Record<DecisionMethod, number> = {
+    "kernel-assisted": 0,
+    intuitive: 0,
+    "pros-cons": 0,
+    other: 0
+  };
+  const errorCounts: Record<ErrorAttributionCategory, number> = {
+    representation: 0,
+    "common-engine": 0,
+    prediction: 0,
+    utility: 0,
+    "decision-policy": 0,
+    environment: 0,
+    "insufficient-evidence": 0,
+    mixed: 0,
+    unknown: 0
+  };
+
+  completed.forEach((item) => {
+    const method = item.pilot?.pre?.method;
+    if (method) methodCounts[method] += 1;
+    item.pilot?.errorAttribution?.categories.forEach((category) => {
+      errorCounts[category] += 1;
+    });
+  });
+
+  function average(values: Array<number | undefined>) {
+    const finite = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    return finite.length ? finite.reduce((sum, value) => sum + value, 0) / finite.length : null;
+  }
+
+  return {
+    completed: completed.length,
+    kernelCompleted: kernelCompleted.length,
+    batch1Target: 5,
+    batch1Completed: Math.min(kernelCompleted.length, 5),
+    methodCounts,
+    errorCounts,
+    averages: {
+      decisionTimeMinutes: average(completed.map((item) => item.pilot?.pre?.decisionTimeMinutes)),
+      cognitiveLoad: average(completed.map((item) => item.pilot?.pre?.cognitiveLoad)),
+      informationCost: average(completed.map((item) => item.pilot?.pre?.informationCost)),
+      outcomeRegret: average(completed.map((item) => item.pilot?.post?.outcomeRegret)),
+      processRegret: average(completed.map((item) => item.pilot?.post?.processRegret)),
+      processQuality: average(completed.map((item) => item.pilot?.post?.processQuality))
+    }
+  };
 }
 
 export function createModelSnapshot(state: TheorySyncState, reason: string): ModelSnapshot {

@@ -1,4 +1,4 @@
-# 自分取扱説明書 v0.6.1 Self Manual Pilot Bridge
+# 自分取扱説明書 v0.6.2 Error Attribution & Pilot Metrics
 
 公開URL：`https://cognitive-manual-app.vercel.app/`
 
@@ -6,7 +6,9 @@
 
 v0.6では、v0.5 Coreを再オープンせず、その上にDERIVEDな **Root-to-Algorithm Kernel Bridge** を追加しました。Root Theoryの共通処理骨格を、Domain固有のDecision Architectureへ変換するためのFail-Closedな入口です。
 
-v0.6.1では、自分取説の条件付きHypothesisを関連Evidence経由でKernelへ渡し、Kernel生成時のEvidence cutoffを既存Decision Case / Prediction Freezeへ保持したまま引き継ぎます。Kernel由来Caseは`derivedFrom`で追跡でき、Calibration画面でKernel-linked Case数とMISSを確認できます。
+v0.6.1では、自分取説の条件付きHypothesisを関連Evidence経由でKernelへ渡し、Kernel生成時のEvidence cutoffを既存Decision Case / Prediction Freezeへ保持したまま引き継ぎます。Kernel由来Caseは`derivedFrom`で追跡できます。
+
+v0.6.2では、Freeze前のDecision CostとOutcome後のRegret / Process Quality / Error AttributionをDecision Caseへ追加し、Calibration画面でPilot Batch進捗と集計を確認できます。
 
 ## Core pipeline
 
@@ -52,6 +54,16 @@ Kernelは自動実行権限を持ちません。Evidenceから支持できない
 - Prediction / Utility / DecisionはPilot画面で人間が明示してからFreeze
 - Calibration画面でKernel-linked completed / assessable / MISSを分離表示
 
+## v0.6.2 Error Attribution / Pilot Metrics
+
+- 判断方法を `kernel-assisted` / `intuitive` / `pros-cons` / `other` で記録
+- Freeze前にDecision Time / Cognitive Load / Information Costを任意記録
+- Outcome後にOutcome Regret / Process Regret / Process Quality / Reversalを任意記録
+- PARTIAL / MISS / NOT TESTABLEの原因候補を複数カテゴリで保存
+- `mixed` / `unknown` / `insufficient-evidence` をFail-Closedな正規状態として許容
+- Calibration画面でBatch 1進捗・方法別件数・平均Process Metrics・Error Attribution内訳を表示
+- 1〜5指標はpsychometric scaleではなく本人内比較用の運用指標
+
 ## Authority boundary
 
 - Canonical Root Theory / S01 locked validation authorityをアプリ都合で変更しない
@@ -86,7 +98,7 @@ Kernelは自動実行権限を持ちません。Evidenceから支持できない
 
 E1〜E6 are stored as semantic references, not silently redefined by the app. The app operationalizes the validation loop and Root-to-Domain bridge but does not claim that the equations are empirically established.
 
-## Extensions after v0.6 Bridge
+## Extensions after v0.6.2
 
 次の優先線は、Kernelを少数の低リスクDomainで実運用し、同じ上位骨格を変更せず再利用できるかを見ることです。
 
@@ -134,4 +146,5 @@ The repository contains no real name, medical record, or actual personal psychol
 - `docs/MOBILE_QA_CHECKLIST.md`
 - `docs/ALGORITHM_KERNEL_V06.md`
 - `docs/LOW_RISK_PILOT_V061.md`
+- `docs/ERROR_ATTRIBUTION_V062.md`
 - `DECISION_AUDIT.md`
