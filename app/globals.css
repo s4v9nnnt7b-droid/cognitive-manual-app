@@ -441,6 +441,19 @@ label {
   min-width: 0;
 }
 
+.kernel-list {
+  display: grid;
+  gap: 8px;
+}
+
+.kernel-list div {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--muted);
+}
+
 .panel-card {
   display: grid;
   gap: 14px;
