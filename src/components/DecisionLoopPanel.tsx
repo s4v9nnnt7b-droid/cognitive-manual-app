@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { KernelDecisionSeed } from "@/src/lib/algorithm-kernel";
 import type {
   ConfidenceBand,
   DecisionCase,
@@ -12,6 +13,8 @@ import type {
 type Props = {
   state: TheorySyncState;
   domainOptions: Array<{ value: EvidenceDomain; label: string }>;
+  seed?: KernelDecisionSeed | null;
+  onSeedConsumed?: () => void;
   onChange: (next: TheorySyncState, message: string) => void;
 };
 
@@ -22,7 +25,7 @@ const validationOptions: Array<{ value: ValidationStatus; label: string }> = [
   { value: "not-testable", label: "NOT TESTABLE" }
 ];
 
-export function DecisionLoopPanel({ state, domainOptions, onChange }: Props) {
+export function DecisionLoopPanel({ state, domainOptions, seed, onSeedConsumed, onChange }: Props) {
   const [domain, setDomain] = useState<EvidenceDomain>("decision");
   const [goal, setGoal] = useState("");
   const [constraintsText, setConstraintsText] = useState("");
@@ -40,10 +43,17 @@ export function DecisionLoopPanel({ state, domainOptions, onChange }: Props) {
     [state.decisionCases]
   );
 
+  useEffect(() => {
+    if (!seed) return;
+    setDomain(seed.domain);
+    setGoal(seed.goal);
+    setConstraintsText(seed.constraints.join("\n"));
+  }, [seed]);
+
   function freezePrediction() {
     if (!goal.trim() || !prediction.trim() || !decision.trim()) return;
     const now = new Date().toISOString();
-    const evidenceIds = state.evidence
+    const evidenceIds = seed?.evidenceIds || state.evidence
       .filter((item) => item.domain === domain || item.domain === "general")
       .map((item) => item.id);
 
@@ -60,6 +70,11 @@ export function DecisionLoopPanel({ state, domainOptions, onChange }: Props) {
       uncertainty,
       utilityNote: utilityNote.trim() || undefined,
       decision: decision.trim(),
+      derivedFrom: seed ? {
+        kind: "algorithm-kernel",
+        id: seed.kernelSpecId,
+        version: seed.generatorVersion
+      } : undefined,
       validation: "pending"
     };
 
@@ -71,6 +86,7 @@ export function DecisionLoopPanel({ state, domainOptions, onChange }: Props) {
     setUtilityNote("");
     setDecision("");
     setUncertainty("provisional");
+    onSeedConsumed?.();
   }
 
   function closeCase(item: DecisionCase) {
@@ -101,6 +117,13 @@ export function DecisionLoopPanel({ state, domainOptions, onChange }: Props) {
           <span className="status-chip">{state.decisionCases.length} cases</span>
         </div>
         <p>Outcomeを見る前に予測・判断・反証条件を固定します。保存後はこのCaseのPredictionを編集しません。</p>
+        {seed ? (
+          <div className="kernel-handoff">
+            <b>Algorithm Kernelから引き継ぎ</b>
+            <span>{seed.generatorVersion} / Evidence cutoff {seed.evidenceIds.length}件</span>
+            <small>Domain・Goal・Constraintsは引き継ぎ済み。Prediction / Utility / Decisionはここで明示してからFreezeします。</small>
+          </div>
+        ) : null}
 
         <label>領域
           <select value={domain} onChange={(e) => setDomain(e.target.value as EvidenceDomain)}>
@@ -142,6 +165,7 @@ export function DecisionLoopPanel({ state, domainOptions, onChange }: Props) {
               <div><b>Prediction</b><span>{item.prediction || "未記録"}</span></div>
               <div><b>Decision</b><span>{item.decision || "未記録"}</span></div>
               <div><b>Evidence cutoff</b><span>{item.evidenceIds.length}件</span></div>
+              <div><b>Source</b><span>{item.derivedFrom ? `${item.derivedFrom.version} / ${item.derivedFrom.id}` : "manual"}</span></div>
               <div><b>Frozen</b><span>{item.predictionFrozenAt || item.createdAt}</span></div>
             </div>
             {item.falsificationConditions?.length ? (

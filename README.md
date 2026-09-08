@@ -1,10 +1,12 @@
-# 自分取扱説明書 v0.6 Algorithm Kernel Bridge
+# 自分取扱説明書 v0.6.1 Self Manual Pilot Bridge
 
 公開URL：`https://cognitive-manual-app.vercel.app/`
 
 「固定タイプを当てるアプリ」ではなく、Evidence・Prediction・Decision・Outcome・Feedback・Model Updateを分離して、自分についての条件付きモデルを育てるMobile Web / PWAです。
 
 v0.6では、v0.5 Coreを再オープンせず、その上にDERIVEDな **Root-to-Algorithm Kernel Bridge** を追加しました。Root Theoryの共通処理骨格を、Domain固有のDecision Architectureへ変換するためのFail-Closedな入口です。
+
+v0.6.1では、自分取説の条件付きHypothesisを関連Evidence経由でKernelへ渡し、Kernel生成時のEvidence cutoffを既存Decision Case / Prediction Freezeへ保持したまま引き継ぎます。Kernel由来Caseは`derivedFrom`で追跡でき、Calibration画面でKernel-linked Case数とMISSを確認できます。
 
 ## Core pipeline
 
@@ -39,6 +41,16 @@ Readinessは3段階です。
 - `LOW_RISK_PILOT`：低リスクPilotへ進める。既存Decision CaseでPredictionをFreezeする
 
 Kernelは自動実行権限を持ちません。Evidenceから支持できない確率・重み・精密値を捏造せず、High-stakes / irreversible decisionへ自動昇格しません。
+
+## v0.6.1 Self Manual / Pilot handoff
+
+- 関連Evidenceに接続されたModelHypothesisだけをPersonal Signalとして参照
+- authority / status / confidence / conditions / boundaryConditionsを保持
+- Hypothesisを固定Traitや命令規則へ自動変換しない
+- Kernel生成時のEvidence cutoffをPilot Caseへ引き継ぐ
+- Decision CaseにはKernel id / versionを`derivedFrom`として保存
+- Prediction / Utility / DecisionはPilot画面で人間が明示してからFreeze
+- Calibration画面でKernel-linked completed / assessable / MISSを分離表示
 
 ## Authority boundary
 
@@ -121,4 +133,5 @@ The repository contains no real name, medical record, or actual personal psychol
 - `docs/COMPLETION_PLAN.md`
 - `docs/MOBILE_QA_CHECKLIST.md`
 - `docs/ALGORITHM_KERNEL_V06.md`
+- `docs/LOW_RISK_PILOT_V061.md`
 - `DECISION_AUDIT.md`

@@ -1,9 +1,35 @@
-import type { EvidenceDomain, TheorySyncState } from "@/src/lib/theory";
+import type {
+  ConfidenceBand,
+  EvidenceDomain,
+  HypothesisStatus,
+  TheoryAuthority,
+  TheorySyncState
+} from "@/src/lib/theory";
 
 export const ALGORITHM_KERNEL_VERSION = "root-to-algorithm-kernel-v0.1";
 
 export type AlgorithmReadiness = "observe-more" | "qualitative" | "pilot-ready";
 export type KernelNextAction = "OBSERVE_MORE" | "QUALITATIVE_MODEL" | "LOW_RISK_PILOT";
+
+export type PersonalModelSignal = {
+  id: string;
+  title: string;
+  authority: TheoryAuthority;
+  status: HypothesisStatus;
+  confidence: ConfidenceBand;
+  linkedEvidenceIds: string[];
+  conditions: string[];
+  boundaryConditions: string[];
+};
+
+export type KernelDecisionSeed = {
+  domain: EvidenceDomain;
+  goal: string;
+  constraints: string[];
+  evidenceIds: string[];
+  kernelSpecId: string;
+  generatorVersion: string;
+};
 
 export type AlgorithmKernelSpec = {
   id: string;
@@ -20,6 +46,10 @@ export type AlgorithmKernelSpec = {
   naturalEpisodeCount: number;
   outcomeEvidenceCount: number;
   completedDecisionCount: number;
+  stateDynamicsCaseCount: number;
+  stateDynamicsCompletedCount: number;
+  domainMissCount: number;
+  personalSignals: PersonalModelSignal[];
   readiness: AlgorithmReadiness;
   readinessReasons: string[];
   representationContract: string[];
@@ -45,6 +75,9 @@ export type DomainReadinessSummary = {
   naturalEpisodeCount: number;
   outcomeEvidenceCount: number;
   completedDecisionCount: number;
+  stateDynamicsCaseCount: number;
+  stateDynamicsCompletedCount: number;
+  domainMissCount: number;
   readiness: AlgorithmReadiness;
   reasons: string[];
 };
@@ -59,9 +92,11 @@ export function inspectDomainReadiness(
   );
   const naturalEpisodes = relevantEvidence.filter((item) => item.source === "natural-episode");
   const outcomeEvidence = relevantEvidence.filter((item) => Boolean(item.outcome || item.feedback));
-  const completedDecisions = state.decisionCases.filter(
-    (item) => item.domain === domain && item.validation !== "pending"
-  );
+  const domainDecisions = state.decisionCases.filter((item) => item.domain === domain);
+  const completedDecisions = domainDecisions.filter((item) => item.validation !== "pending");
+  const stateDynamicsCases = state.stateDynamicsCases.filter((item) => item.domain === domain);
+  const stateDynamicsCompleted = stateDynamicsCases.filter((item) => item.validation !== "pending");
+  const domainMissCount = domainDecisions.filter((item) => item.validation === "miss").length;
 
   const reasons: string[] = [];
   let readiness: AlgorithmReadiness = "pilot-ready";
@@ -85,6 +120,9 @@ export function inspectDomainReadiness(
   if (readiness === "pilot-ready") {
     reasons.push("低リスクPilot用のDecision Architectureを組めるEvidenceがあります。");
   }
+  if (domainMissCount > 0) {
+    reasons.push(`このDomainにはMISSが${domainMissCount}件あります。反例を保持したままPilotします。`);
+  }
 
   return {
     domain,
@@ -93,15 +131,43 @@ export function inspectDomainReadiness(
     naturalEpisodeCount: naturalEpisodes.length,
     outcomeEvidenceCount: outcomeEvidence.length,
     completedDecisionCount: completedDecisions.length,
+    stateDynamicsCaseCount: stateDynamicsCases.length,
+    stateDynamicsCompletedCount: stateDynamicsCompleted.length,
+    domainMissCount,
     readiness,
     reasons
   };
+}
+
+export function collectPersonalModelSignals(
+  state: TheorySyncState,
+  evidenceIds: string[]
+): PersonalModelSignal[] {
+  const relevant = new Set(evidenceIds);
+  return state.hypotheses
+    .map((hypothesis) => {
+      const linkedEvidenceIds = [...hypothesis.supportingEvidenceIds, ...hypothesis.counterEvidenceIds]
+        .filter((id, index, all) => relevant.has(id) && all.indexOf(id) === index);
+      return { hypothesis, linkedEvidenceIds };
+    })
+    .filter((item) => item.linkedEvidenceIds.length > 0)
+    .map(({ hypothesis, linkedEvidenceIds }) => ({
+      id: hypothesis.id,
+      title: hypothesis.title,
+      authority: hypothesis.authority,
+      status: hypothesis.status,
+      confidence: hypothesis.confidence,
+      linkedEvidenceIds,
+      conditions: hypothesis.conditions,
+      boundaryConditions: hypothesis.boundaryConditions
+    }));
 }
 
 export function generateAlgorithmKernelSpec(input: GenerateAlgorithmKernelInput): AlgorithmKernelSpec {
   const goal = input.goal.trim();
   const constraints = (input.constraints || []).map((item) => item.trim()).filter(Boolean);
   const readiness = inspectDomainReadiness(input.state, input.domain, goal);
+  const personalSignals = collectPersonalModelSignals(input.state, readiness.evidenceIds);
   const now = new Date().toISOString();
 
   const nextAction: KernelNextAction = readiness.readiness === "observe-more"
@@ -125,11 +191,16 @@ export function generateAlgorithmKernelSpec(input: GenerateAlgorithmKernelInput)
     naturalEpisodeCount: readiness.naturalEpisodeCount,
     outcomeEvidenceCount: readiness.outcomeEvidenceCount,
     completedDecisionCount: readiness.completedDecisionCount,
+    stateDynamicsCaseCount: readiness.stateDynamicsCaseCount,
+    stateDynamicsCompletedCount: readiness.stateDynamicsCompletedCount,
+    domainMissCount: readiness.domainMissCount,
+    personalSignals,
     readiness: readiness.readiness,
     readinessReasons: readiness.reasons,
     representationContract: [
       "Evidence provenanceを保持する",
       "Observation / Context / Action / Outcome / Feedbackを分離する",
+      "自分取説の仮説は固定Traitではなく、条件・境界・反例付きSignalとして参照する",
       "Domain固有情報を共通表現へ変換し、BiasとUncertaintyを未知のまま残せる"
     ],
     predictionContract: [
@@ -148,6 +219,7 @@ export function generateAlgorithmKernelSpec(input: GenerateAlgorithmKernelInput)
       "Evidence不足時はNO EQUATION YET / OBSERVE MOREを正規出力にする"
     ],
     validationContract: [
+      "Kernel生成時のEvidence cutoffをDecision Caseへ引き継ぐ",
       "Prediction Freeze → Outcome → Feedback → Validation",
       "MATCH / PARTIAL / MISS / NOT TESTABLEを保存する",
       "MISSやCounterexampleを削除せず、Pilot中にGeneratorを後付け修正しない"
@@ -157,7 +229,20 @@ export function generateAlgorithmKernelSpec(input: GenerateAlgorithmKernelInput)
       "Canonical Root Theory / S01 locked authorityを変更しない",
       "Applicationの便利さをTheoryのTruthの証明に使わない",
       "High-stakes / irreversible decisionへ自動昇格しない",
+      "Self Manual hypothesisを命令規則へ自動変換しない",
       "Kernel自体を新しいBottleneckにしない"
     ]
+  };
+}
+
+export function buildKernelDecisionSeed(spec: AlgorithmKernelSpec): KernelDecisionSeed | null {
+  if (spec.nextAction !== "LOW_RISK_PILOT") return null;
+  return {
+    domain: spec.domain,
+    goal: spec.goal,
+    constraints: spec.constraints,
+    evidenceIds: spec.evidenceIds,
+    kernelSpecId: spec.id,
+    generatorVersion: spec.generatorVersion
   };
 }

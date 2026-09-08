@@ -118,3 +118,17 @@ Study / daily decision
 成功条件は「Kernelがそれっぽい説明を作れること」ではない。
 
 同じ上位骨格をDomainごとに後付け変更せず使え、Evidence不足を検出し、Decision Process / Calibration / Frictionを実際に改善できることを評価する。
+
+## v0.6.1 Self Manual Pilot Bridge
+
+Implemented after the initial v0.6 bridge:
+
+- Self Manual hypotheses are selected only when linked to the current Domain/general Evidence cutoff.
+- Each signal keeps authority, status, confidence, conditions and boundary conditions.
+- Signals are contextual inputs, not automatic behavior rules.
+- Kernel-generated low-risk pilot handoff preserves the exact Evidence cutoff.
+- Decision Cases record `derivedFrom.kind = algorithm-kernel`, Kernel id and generator version.
+- Prediction / Utility / Decision remain explicit human inputs before Freeze.
+- Calibration UI separates Kernel-linked completed, assessable and MISS counts.
+
+This turns the bridge from a display-only draft into a prospectively traceable Pilot path without changing Canonical Root Theory or the v0.5 Core validation semantics.

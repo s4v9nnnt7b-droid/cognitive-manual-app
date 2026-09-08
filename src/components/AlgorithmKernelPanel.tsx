@@ -3,16 +3,19 @@
 import { useMemo, useState } from "react";
 import {
   ALGORITHM_KERNEL_VERSION,
+  buildKernelDecisionSeed,
   generateAlgorithmKernelSpec,
   inspectDomainReadiness,
-  type AlgorithmKernelSpec
+  type AlgorithmKernelSpec,
+  type KernelDecisionSeed,
+  type PersonalModelSignal
 } from "@/src/lib/algorithm-kernel";
 import type { EvidenceDomain, TheorySyncState } from "@/src/lib/theory";
 
 type Props = {
   state: TheorySyncState;
   domainOptions: Array<{ value: EvidenceDomain; label: string }>;
-  onMoveToDecision: () => void;
+  onMoveToDecision: (seed: KernelDecisionSeed) => void;
 };
 
 export function AlgorithmKernelPanel({ state, domainOptions, onMoveToDecision }: Props) {
@@ -35,6 +38,11 @@ export function AlgorithmKernelPanel({ state, domainOptions, onMoveToDecision }:
     }));
   }
 
+  function moveToDecision(current: AlgorithmKernelSpec) {
+    const seed = buildKernelDecisionSeed(current);
+    if (seed) onMoveToDecision(seed);
+  }
+
   const domainLabel = domainOptions.find((item) => item.value === domain)?.label || domain;
 
   return (
@@ -42,20 +50,20 @@ export function AlgorithmKernelPanel({ state, domainOptions, onMoveToDecision }:
       <article className="panel-card">
         <div className="section-head">
           <div>
-            <p className="eyebrow">Theory → Algorithm Generator</p>
+            <p className="eyebrow">Theory → Self Manual → Algorithm</p>
             <h2>Algorithm Kernel Bridge</h2>
           </div>
-          <span className="status-chip">DERIVED v0.1</span>
+          <span className="status-chip">DERIVED v0.6.1</span>
         </div>
         <p>
-          根源理論の共通処理骨格を、Domain固有のDecision Architectureへ変換する入口です。
-          ここでは自動決定せず、Evidence不足ならFail-Closedします。
+          Root Theoryの共通処理骨格と、自分取説に蓄積した条件付きHypothesisを、
+          Domain固有のDecision Architectureへ接続します。Hypothesisは命令規則にせず、反例・境界条件を保持したSignalとして参照します。
         </p>
 
         <div className="settings-list">
           <div><b>Kernel</b><span>{ALGORITHM_KERNEL_VERSION}</span></div>
           <div><b>Authority</b><span>Derived / Canonical unchanged</span></div>
-          <div><b>Pipeline</b><span>Evidence → Representation → Prediction → Utility → Decision → Validation</span></div>
+          <div><b>Pipeline</b><span>Evidence → Personal Signals → Prediction → Utility → Decision → Validation</span></div>
         </div>
 
         <label>Domain
@@ -75,6 +83,8 @@ export function AlgorithmKernelPanel({ state, domainOptions, onMoveToDecision }:
           <div><b>Natural Episode</b><span>{readiness.naturalEpisodeCount}件</span></div>
           <div><b>Outcome/Feedback付き</b><span>{readiness.outcomeEvidenceCount}件</span></div>
           <div><b>Completed Decision</b><span>{readiness.completedDecisionCount}件</span></div>
+          <div><b>State-Dynamics</b><span>{readiness.stateDynamicsCompletedCount}/{readiness.stateDynamicsCaseCount} validated</span></div>
+          <div><b>Counterexample / MISS</b><span>{readiness.domainMissCount}件</span></div>
           <div><b>Readiness</b><span>{readiness.readiness.toUpperCase()}</span></div>
         </div>
         <p className="hint-text">{readiness.reasons.join(" / ")}</p>
@@ -94,6 +104,18 @@ export function AlgorithmKernelPanel({ state, domainOptions, onMoveToDecision }:
             <span className="status-chip">{spec.nextAction}</span>
           </div>
 
+          <section>
+            <h3>Self Manual Signals</h3>
+            <p className="hint-text">関連Evidenceに接続された仮説のみ表示。固定Traitや自動ルールではありません。</p>
+            {spec.personalSignals.length ? (
+              <div className="kernel-list">
+                {spec.personalSignals.map((signal) => <PersonalSignal key={signal.id} signal={signal} />)}
+              </div>
+            ) : (
+              <div className="kernel-list"><div>関連Hypothesisはまだありません。Evidence中心で進めます。</div></div>
+            )}
+          </section>
+
           <KernelContract title="1. Representation φ_d" items={spec.representationContract} />
           <KernelContract title="2. Prediction P_d" items={spec.predictionContract} />
           <KernelContract title="3. Utility U_d" items={spec.utilityContract} />
@@ -103,13 +125,15 @@ export function AlgorithmKernelPanel({ state, domainOptions, onMoveToDecision }:
 
           <div className="settings-list">
             <div><b>Evidence cutoff</b><span>{spec.evidenceCount}件</span></div>
+            <div><b>Personal signals</b><span>{spec.personalSignals.length}件</span></div>
+            <div><b>State-Dynamics</b><span>{spec.stateDynamicsCompletedCount}/{spec.stateDynamicsCaseCount} validated</span></div>
             <div><b>Generated</b><span>{spec.createdAt}</span></div>
             <div><b>Next</b><span>{spec.nextAction}</span></div>
           </div>
 
           {spec.nextAction === "LOW_RISK_PILOT" ? (
-            <button type="button" className="primary-button" onClick={onMoveToDecision}>
-              Decision CaseでPredictionをFreezeする
+            <button type="button" className="primary-button" onClick={() => moveToDecision(spec)}>
+              Evidence cutoffを保持してPrediction Freezeへ
             </button>
           ) : (
             <p className="hint-text">
@@ -119,6 +143,19 @@ export function AlgorithmKernelPanel({ state, domainOptions, onMoveToDecision }:
         </article>
       ) : null}
     </section>
+  );
+}
+
+function PersonalSignal({ signal }: { signal: PersonalModelSignal }) {
+  const conditions = signal.conditions.length ? signal.conditions.join(" / ") : "条件未記録";
+  const boundaries = signal.boundaryConditions.length ? signal.boundaryConditions.join(" / ") : "境界未記録";
+  return (
+    <div>
+      <b>{signal.title}</b>
+      <span>{signal.authority} / {signal.status} / {signal.confidence} / linked Evidence {signal.linkedEvidenceIds.length}件</span>
+      <small>条件：{conditions}</small>
+      <small>境界：{boundaries}</small>
+    </div>
   );
 }
 
