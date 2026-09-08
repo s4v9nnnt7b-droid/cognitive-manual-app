@@ -10,6 +10,7 @@ import {
   type ScoreKey,
   type Scores
 } from "@/src/lib/cognitive";
+import { AlgorithmKernelPanel } from "@/src/components/AlgorithmKernelPanel";
 import { DecisionLoopPanel } from "@/src/components/DecisionLoopPanel";
 import { EvidenceManager } from "@/src/components/EvidenceManager";
 import { ModelOpsPanel } from "@/src/components/ModelOpsPanel";
@@ -29,7 +30,19 @@ import {
 const LEGACY_STORAGE_KEY = "cognitive-manual-v02-mobile";
 const STORAGE_KEY = "cognitive-manual-v03-theory-sync";
 
-type View = "home" | "profile" | "input" | "results" | "decision" | "modelops" | "log" | "settings";
+type View = "home" | "profile" | "input" | "results" | "kernel" | "decision" | "modelops" | "log" | "settings";
+
+const viewTitles: Record<View, string> = {
+  home: "自分取扱説明書",
+  profile: "プロフィール",
+  input: "入力",
+  results: "現在モデル",
+  kernel: "Algorithm Kernel",
+  decision: "判断",
+  modelops: "検証",
+  log: "Evidence",
+  settings: "Theory / 設定"
+};
 
 const scoreFields: Array<{ key: ScoreKey; label: string; note: string }> = [
   { key: "fiq", label: "FIQ", note: "全体" },
@@ -287,7 +300,7 @@ export default function Page() {
           <button type="button" className="primary-button full" disabled={!consentChecked} onClick={startApp}>
             自分のモデルを開く
           </button>
-          <p className="micro-copy">v0.5 Core Complete。Evidence・Prediction・Calibration・Model History・State-Dynamicsを一体運用します。</p>
+          <p className="micro-copy">v0.6 Algorithm Kernel Bridge。v0.5 Coreを維持したまま、Theory→Domain Algorithmの派生レイヤーを追加します。</p>
         </section>
       </main>
     );
@@ -301,7 +314,7 @@ export default function Page() {
         </button>
         <div>
           <p className="eyebrow">Evidence → Prediction → Feedback</p>
-          <h1>{view === "home" ? "自分取扱説明書" : navItems.find((item) => item.view === view)?.label}</h1>
+          <h1>{viewTitles[view]}</h1>
         </div>
         <button type="button" className="ghost-button" onClick={() => persist("保存しました。")}>保存</button>
       </header>
@@ -335,6 +348,7 @@ export default function Page() {
             <button type="button" onClick={() => setView("decision")}><span>Decision Case</span><small>Prediction Freeze</small></button>
             <button type="button" onClick={() => setView("results")}><span>現在モデル</span><small>暫定仮説</small></button>
             <button type="button" onClick={() => setView("modelops")}><span>検証・履歴</span><small>Calibration</small></button>
+            <button type="button" onClick={() => setView("kernel")}><span>Algorithm Kernel</span><small>Theory → Domain</small></button>
             <button type="button" onClick={() => setView("results")}><span>対人説明</span><small>共有前確認</small></button>
             <button type="button" onClick={() => setView("settings")}><span>Theory / 設定</span><small>{THEORY_SPEC_VERSION}</small></button>
           </section>
@@ -449,6 +463,14 @@ export default function Page() {
         </section>
       ) : null}
 
+      {view === "kernel" ? (
+        <AlgorithmKernelPanel
+          state={theoryState}
+          domainOptions={domainOptions}
+          onMoveToDecision={() => setView("decision")}
+        />
+      ) : null}
+
       {view === "decision" ? (
         <DecisionLoopPanel
           state={theoryState}
@@ -523,7 +545,7 @@ export default function Page() {
           <article className="panel-card">
             <h2>設定・Theory・データ管理</h2>
             <div className="settings-list">
-              <div><b>保存方式</b><span>LocalStorage schema v2 / app v0.5</span></div>
+              <div><b>保存方式</b><span>LocalStorage schema v2 / app v0.6 extension</span></div>
               <div><b>Theory Spec</b><span>{THEORY_SPEC_VERSION}</span></div>
               <div><b>App model</b><span>{APP_MODEL_VERSION}</span></div>
               <div><b>Authority</b><span>Canonical / Derived / Legacy 分離</span></div>
@@ -533,6 +555,7 @@ export default function Page() {
               <div><b>Calibration</b><span>MATCH / PARTIAL / MISS / NOT TESTABLE</span></div>
               <div><b>Model History</b><span>Snapshot対応</span></div>
               <div><b>State-Dynamics</b><span>Derived / Freeze + Validation</span></div>
+              <div><b>Algorithm Kernel</b><span>Derived / Fail-Closed / Domain Bridge</span></div>
               <div><b>AI API</b><span>Coreでは未使用。Adapter層で追加可能</span></div>
             </div>
             <button type="button" className="primary-button" onClick={() => persist("保存しました。")}>現在の内容を保存</button>

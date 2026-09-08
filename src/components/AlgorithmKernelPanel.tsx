@@ -126,8 +126,8 @@ function KernelContract({ title, items }: { title: string; items: string[] }) {
   return (
     <section>
       <h3>{title}</h3>
-      <div className="phase-list">
-        {items.map((item) => <div key={item}><span>{item}</span></div>)}
+      <div className="kernel-list">
+        {items.map((item) => <div key={item}>{item}</div>)}
       </div>
     </section>
   );
