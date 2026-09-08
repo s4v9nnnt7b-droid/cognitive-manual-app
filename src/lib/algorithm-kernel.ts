@@ -1,11 +1,35 @@
-import type {
-  AlgorithmKernelSpec,
-  AlgorithmReadiness,
-  EvidenceDomain,
-  TheorySyncState
-} from "@/src/lib/theory";
+import type { EvidenceDomain, TheorySyncState } from "@/src/lib/theory";
 
 export const ALGORITHM_KERNEL_VERSION = "root-to-algorithm-kernel-v0.1";
+
+export type AlgorithmReadiness = "observe-more" | "qualitative" | "pilot-ready";
+export type KernelNextAction = "OBSERVE_MORE" | "QUALITATIVE_MODEL" | "LOW_RISK_PILOT";
+
+export type AlgorithmKernelSpec = {
+  id: string;
+  domain: EvidenceDomain;
+  createdAt: string;
+  authority: "derived";
+  generatorVersion: string;
+  theorySpecVersion: string;
+  appModelVersion: string;
+  goal: string;
+  constraints: string[];
+  evidenceIds: string[];
+  evidenceCount: number;
+  naturalEpisodeCount: number;
+  outcomeEvidenceCount: number;
+  completedDecisionCount: number;
+  readiness: AlgorithmReadiness;
+  readinessReasons: string[];
+  representationContract: string[];
+  predictionContract: string[];
+  utilityContract: string[];
+  decisionContract: string[];
+  validationContract: string[];
+  nextAction: KernelNextAction;
+  guardrails: string[];
+};
 
 export type GenerateAlgorithmKernelInput = {
   state: TheorySyncState;
@@ -80,7 +104,7 @@ export function generateAlgorithmKernelSpec(input: GenerateAlgorithmKernelInput)
   const readiness = inspectDomainReadiness(input.state, input.domain, goal);
   const now = new Date().toISOString();
 
-  const nextAction = readiness.readiness === "observe-more"
+  const nextAction: KernelNextAction = readiness.readiness === "observe-more"
     ? "OBSERVE_MORE"
     : readiness.readiness === "qualitative"
       ? "QUALITATIVE_MODEL"
